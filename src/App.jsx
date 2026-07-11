@@ -3,6 +3,7 @@ import { useStore } from './store.js';
 import HomeScreen from './home/HomeScreen.jsx';
 import CaptureScreen from './capture/CaptureScreen.jsx';
 import DashboardScreen from './dashboard/DashboardScreen.jsx';
+import { changeScreenUnlessSharing } from './navigationGuard.js';
 
 const NAV = [
   { key: 'home', label: 'Home' },
@@ -13,19 +14,22 @@ const NAV = [
 export default function App() {
   const [screen, setScreen] = useState('home');
   const count = useStore((s) => s.items.length);
+  const isSharingToEbay = useStore((s) => s.isSharingToEbay);
+  const changeScreen = (nextScreen) =>
+    changeScreenUnlessSharing(isSharingToEbay, setScreen, nextScreen);
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col bg-[var(--stone)]">
       <main className="min-h-0 flex-1">
         {screen === 'home' ? (
           <HomeScreen
-            onScan={() => setScreen('capture')}
-            onBundle={() => setScreen('dashboard')}
+            onScan={() => changeScreen('capture')}
+            onBundle={() => changeScreen('dashboard')}
           />
         ) : screen === 'capture' ? (
           <CaptureScreen />
         ) : (
-          <DashboardScreen onScanFirst={() => setScreen('capture')} />
+          <DashboardScreen onScanFirst={() => changeScreen('capture')} />
         )}
       </main>
 
@@ -38,9 +42,10 @@ export default function App() {
           return (
             <button
               key={key}
-              onClick={() => setScreen(key)}
+              onClick={() => changeScreen(key)}
+              disabled={isSharingToEbay}
               aria-current={active ? 'page' : undefined}
-              className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] transition-colors duration-150"
+              className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 color: active ? 'var(--moss-deep)' : 'var(--ink-muted)',
                 fontWeight: active ? 700 : 500,
