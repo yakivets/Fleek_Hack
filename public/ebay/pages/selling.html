@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My eBay — Selling</title>
+    <link rel="icon" href="https://pages.ebay.com/favicon.ico">
+    <link rel="stylesheet" href="../css/Homepage.css">
+    <link rel="stylesheet" href="../css/selling.css">
+  </head>
+  <body>
+    <header class="selling-topbar">
+      <nav aria-label="Application navigation">
+        <a href="../../" class="fleek-link">← Back to Fleek</a>
+        <span aria-hidden="true">|</span>
+        <a href="../index.html">Browse fake eBay</a>
+      </nav>
+    </header>
+
+    <main class="selling-shell">
+      <div class="selling-brand">
+        <a href="../index.html" aria-label="eBay clone home">
+          <span class="ebay-red">e</span><span class="ebay-blue">b</span><span class="ebay-yellow">a</span><span class="ebay-green">y</span>
+        </a>
+        <span>Seller Hub</span>
+      </div>
+
+      <div class="selling-heading">
+        <div>
+          <p class="selling-eyebrow">My eBay</p>
+          <h1>Selling</h1>
+          <p>Your listings shared from Fleek are stored in this browser.</p>
+        </div>
+        <a class="browse-button" href="productList.html?category=seeall">Browse all products</a>
+      </div>
+
+      <section aria-labelledby="listings-heading">
+        <div class="listings-title">
+          <h2 id="listings-heading">Active listings</h2>
+          <span id="listing-count" aria-live="polite"></span>
+        </div>
+        <div id="selling-state" class="selling-state" role="status">Loading your listings…</div>
+        <div id="selling-listings" class="selling-listings" hidden></div>
+      </section>
+    </main>
+
+    <script type="module" src="../js/selling.js"></script>
+  </body>
+</html>

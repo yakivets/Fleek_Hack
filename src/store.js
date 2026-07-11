@@ -58,6 +58,7 @@ export const useStore = create(
       activeBundleId: null,
       captureMode: 'single',
       hasHydrated: false,
+      isSharingToEbay: false,
 
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       setCaptureMode: (captureMode) => set({ captureMode }),
@@ -132,6 +133,27 @@ export const useStore = create(
             return next;
           }),
         })),
+
+      markItemsPosted: (ids) => {
+        const postedIds = new Set(ids);
+        if (postedIds.size === 0) return;
+
+        set((state) => ({
+          items: state.items.map((item) =>
+            postedIds.has(item.id) ? { ...item, status: 'posted' } : item,
+          ),
+        }));
+      },
+
+      beginEbayShare: () => {
+        if (get().isSharingToEbay) return false;
+        set({ isSharingToEbay: true });
+        return true;
+      },
+
+      finishEbayShare: () => {
+        if (get().isSharingToEbay) set({ isSharingToEbay: false });
+      },
 
       removeItem: (id) =>
         set((state) => ({

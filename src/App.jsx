@@ -3,6 +3,7 @@ import { useStore } from './store.js';
 import HomeScreen from './home/HomeScreen.jsx';
 import CaptureScreen from './capture/CaptureScreen.jsx';
 import DashboardScreen from './dashboard/DashboardScreen.jsx';
+import { changeScreenUnlessSharing } from './navigationGuard.js';
 
 const NAV = [
   { key: 'home', label: 'Home' },
@@ -19,10 +20,15 @@ export default function App() {
   const count = useStore((s) => s.items.length);
   const hasHydrated = useStore((s) => s.hasHydrated);
   const continueBundle = useStore((s) => s.continueBundle);
+  const isSharingToEbay = useStore((s) => s.isSharingToEbay);
+  const changeScreen = (nextScreen) =>
+    changeScreenUnlessSharing(isSharingToEbay, setScreen, nextScreen);
 
   const openDashboard = (view = 'items', bundleId = null) => {
+    if (isSharingToEbay) return false;
     setDashboardEntry({ view, bundleId });
     setScreen('dashboard');
+    return true;
   };
 
   if (!hasHydrated) {
@@ -40,7 +46,7 @@ export default function App() {
       <main className="min-h-0 flex-1">
         {screen === 'home' ? (
           <HomeScreen
-            onScan={() => setScreen('capture')}
+            onScan={() => changeScreen('capture')}
             onBundle={() => openDashboard('bundles')}
             onItems={() => openDashboard('items')}
           />
@@ -53,10 +59,9 @@ export default function App() {
             key={`${dashboardEntry.view}-${dashboardEntry.bundleId || 'all'}`}
             initialView={dashboardEntry.view}
             initialBundleId={dashboardEntry.bundleId}
-            onScanFirst={() => setScreen('capture')}
+            onScanFirst={() => changeScreen('capture')}
             onContinueBundle={(bundleId) => {
-              continueBundle(bundleId);
-              setScreen('capture');
+              if (changeScreen('capture')) continueBundle(bundleId);
             }}
           />
         )}
@@ -73,10 +78,11 @@ export default function App() {
               key={key}
               onClick={() => {
                 if (key === 'dashboard') openDashboard('items');
-                else setScreen(key);
+                else changeScreen(key);
               }}
+              disabled={isSharingToEbay}
               aria-current={active ? 'page' : undefined}
-              className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] transition-colors duration-150"
+              className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 color: active ? 'var(--moss-deep)' : 'var(--ink-muted)',
                 fontWeight: active ? 700 : 500,
