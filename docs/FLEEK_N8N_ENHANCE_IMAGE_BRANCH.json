@@ -1,0 +1,159 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enhance-image",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a01d04a5-a33d-4585-a34e-971b85327ef1",
+      "name": "Enhance Image Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "cf5fb890-bafb-42e9-9696-41a67c12e9ee"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const body = $input.first().json.body ?? {};\nconst uri = body.image;\n\nif (typeof uri !== 'string') {\n  throw new Error('Expected body.image to be a data URI');\n}\n\nconst match = uri.match(/^data:(image\\/(?:jpeg|png|webp));base64,(.+)$/s);\nif (!match) throw new Error('Unsupported image data URI');\n\nconst data = match[2].replace(/\\s/g, '');\nif (!data || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {\n  throw new Error('Invalid base64 image data');\n}\n\nconst extension = match[1].split('/')[1].replace('jpeg', 'jpg');\n\nreturn [{\n  json: {},\n  binary: {\n    data: {\n      data,\n      mimeType: match[1],\n      fileName: `original.${extension}`\n    }\n  }\n}];"
+      },
+      "id": "65fb8234-a2ca-4778-9931-91ee076ffb9e",
+      "name": "Prepare Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "edit",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-image-1",
+          "mode": "list",
+          "cachedResultName": "GPT-IMAGE-1"
+        },
+        "prompt": "Create a clean marketplace product photograph from this exact source image. Preserve the exact item and exact camera angle. Preserve its silhouette, proportions, color, material texture, stitching, branding, logos, labels, hardware, pattern, wear, stains, holes, fading, and every visible defect. Change only the background, framing, and lighting. Place the complete item centered on a clean neutral-white studio background with even natural lighting and a subtle contact shadow. Do not repair, beautify, reshape, recolor, crop out, add, remove, replace, or reinterpret any product detail. Do not add a person, mannequin, hanger, props, text, or watermark. The result must accurately represent the specific used item in the source photo.",
+        "images": {
+          "values": [
+            {
+              "binaryPropertyName": "data"
+            }
+          ]
+        },
+        "n": 1,
+        "size": "1024x1024",
+        "quality": "medium",
+        "outputFormat": "jpeg",
+        "outputCompression": 85,
+        "options": {
+          "background": "opaque",
+          "inputFidelity": "high"
+        }
+      },
+      "id": "77f08714-e701-409c-a712-84701bf2b661",
+      "name": "Clean Product Photo",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "image/jpeg"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "aa152bbf-052d-4fdc-81fa-a022fd1466ee",
+      "name": "Return Cleaned Image",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        760,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Enhance Image Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image": {
+      "main": [
+        [
+          {
+            "node": "Clean Product Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Product Photo": {
+      "main": [
+        [
+          {
+            "node": "Return Cleaned Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

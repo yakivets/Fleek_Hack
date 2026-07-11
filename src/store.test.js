@@ -21,6 +21,7 @@ test('creates, groups, moves, and finishes a bundle session', () => {
     bundles: [],
     activeBundleId: null,
     captureMode: 'single',
+    marketplaceConnections: { vinted: false, ebay: false },
   });
 
   const bundleId = useStore.getState().startBundle('Mixed lot');
@@ -44,6 +45,16 @@ test('creates, groups, moves, and finishes a bundle session', () => {
 
   useStore.getState().updateItem('jeans-1', { category_key: 'Trousers' });
   assert.equal(useStore.getState().items[0].category_key, 'Trousers');
+
+  useStore.getState().connectMarketplace('vinted');
+  useStore.getState().postItemToMarketplace('jeans-1', 'vinted');
+  assert.equal(useStore.getState().marketplaceConnections.vinted, true);
+  assert.equal(useStore.getState().items[0].marketplace_posts.vinted, true);
+
+  useStore.getState().connectMarketplace('ebay');
+  useStore.getState().postBundleToMarketplace(bundleId, 'ebay');
+  assert.equal(useStore.getState().items[0].marketplace_posts.ebay, true);
+  assert.equal(useStore.getState().items[0].status, 'posted');
 
   useStore.getState().finishBundle(bundleId);
   assert.equal(useStore.getState().bundles[0].status, 'finished');
