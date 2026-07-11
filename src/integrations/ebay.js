@@ -1,3 +1,5 @@
+import * as bundledSharedListingsStorage from './sharedListings.js';
+
 const CONDITION_LABELS = {
   A: 'Excellent condition',
   B: 'Good condition',
@@ -25,8 +27,7 @@ export function getSharedListingsModuleUrl(baseUrl = VITE_BASE_URL) {
 }
 
 export async function loadSharedListingsStorage() {
-  const moduleUrl = getSharedListingsModuleUrl();
-  return import(/* @vite-ignore */ moduleUrl);
+  return bundledSharedListingsStorage;
 }
 
 export function mapFleekItemToEbayProduct(item) {

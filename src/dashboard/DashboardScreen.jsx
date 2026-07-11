@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_CATEGORY_GROUPS, MARKETPLACES, useStore } from '../store.js';
 import { shareFleekItemsToEbay } from '../integrations/ebay.js';
 import ListingEditor from '../capture/ListingEditor.jsx';
-import { shareDraftItems, shareMarketplaceItems } from './shareDraftItems.js';
+import { getEbayProductPath, shareMarketplaceItems } from './shareDraftItems.js';
 
 const SORTS = {
   newest: { label: 'Newest', fn: () => 0 },
@@ -84,15 +84,9 @@ function AllItemsView({ onScanFirst }) {
   const items = useStore((state) => state.items);
   const updateItem = useStore((state) => state.updateItem);
   const undoItemPosting = useStore((state) => state.undoItemPosting);
-  const markItemsPosted = useStore((state) => state.markItemsPosted);
-  const isSharing = useStore((state) => state.isSharingToEbay);
-  const beginEbayShare = useStore((state) => state.beginEbayShare);
-  const finishEbayShare = useStore((state) => state.finishEbayShare);
   const [sort, setSort] = useState('newest');
   const [filter, setFilter] = useState('All');
   const [openId, setOpenId] = useState(null);
-  const [shareError, setShareError] = useState(null);
-  const [shareSuccess, setShareSuccess] = useState(null);
 
   const visible = useMemo(() => {
     let list = filter === 'All' ? items : items.filter((item) => item.status === filter.toLowerCase());
@@ -105,34 +99,6 @@ function AllItemsView({ onScanFirst }) {
   const total = items.reduce((sum, item) => sum + (item.suggested_price_gbp || 0), 0);
   const postedCount = items.filter((item) => item.status === 'posted').length;
   const readyCount = items.length - postedCount;
-  const draftCount = items.filter((item) => item.status === 'draft').length;
-
-  async function handleAutomaticShare() {
-    const draftSnapshot = items.filter((item) => item.status === 'draft');
-    if (draftSnapshot.length === 0) return;
-
-    setShareError(null);
-    setShareSuccess(null);
-
-    try {
-      await shareDraftItems({
-        items: draftSnapshot,
-        beginSharing: beginEbayShare,
-        finishSharing: finishEbayShare,
-        shareItems: shareFleekItemsToEbay,
-        markItemsPosted,
-        onSuccess: (sharedDrafts) => {
-          const noun = sharedDrafts.length === 1 ? 'listing' : 'listings';
-          setShareSuccess(`${sharedDrafts.length} ${noun} shared. Opening eBay…`);
-        },
-        navigate: (path) => window.location.assign(path),
-      });
-    } catch {
-      setShareError(
-        'Couldn’t share your listings to eBay. Nothing was marked as posted. Please try again.',
-      );
-    }
-  }
 
   if (items.length === 0) {
     return (
@@ -158,28 +124,6 @@ function AllItemsView({ onScanFirst }) {
         </p>
         <Progress value={postedCount} max={items.length} />
       </header>
-
-      <section className="mb-5 rounded-[var(--radius-lg)] bg-[var(--stone-surface)] p-4">
-        <button
-          type="button"
-          onClick={handleAutomaticShare}
-          disabled={draftCount === 0 || isSharing}
-          aria-busy={isSharing}
-          className="min-h-12 w-full rounded-[var(--radius)] bg-[var(--moss)] px-5 text-sm font-bold text-[var(--stone)] transition-colors duration-150 hover:bg-[var(--moss-deep)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSharing ? `Sharing ${draftCount} to eBay…` : 'Share automatically to eBay'}
-        </button>
-        {shareSuccess && (
-          <p className="mt-3 text-sm font-medium text-[var(--moss-deep)]" role="status">
-            {shareSuccess}
-          </p>
-        )}
-        {shareError && (
-          <p className="mt-3 text-sm font-medium text-[var(--clay-deep)]" role="alert">
-            {shareError}
-          </p>
-        )}
-      </section>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1.5" role="group" aria-label="Filter by status">
@@ -814,6 +758,16 @@ function Row({
                 ? 'Posted · Undo'
                 : 'Mark posted'}
           </button>
+          {item.marketplace_posts?.ebay && (
+            <a
+              href={getEbayProductPath(item.id)}
+              target="_blank"
+              rel="noreferrer"
+              className="min-h-8 rounded-full px-2.5 py-1.5 text-xs font-bold text-[var(--moss-deep)] underline underline-offset-2"
+            >
+              View on eBay
+            </a>
+          )}
         </span>
       </div>
 

@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 
 import {
   getSharedListingsModuleUrl,
+  loadSharedListingsStorage,
   mapFleekItemToEbayProduct,
   shareFleekItemsToEbay,
 } from './ebay.js';
 
-test('maps a complete Fleek item to the eBay clone product contract', () => {
+test('maps a complete Fleek item to the eBay product contract', () => {
   const images = ['data:image/jpeg;base64,first', 'data:image/jpeg;base64,second'];
   const product = mapFleekItemToEbayProduct({
     id: 'item-123',
@@ -129,4 +130,12 @@ test('builds the public module URL from a normalized Vite base URL', () => {
   );
   assert.equal(getSharedListingsModuleUrl('/'), '/ebay/js/sharedListings.js');
   assert.equal(getSharedListingsModuleUrl(), '/ebay/js/sharedListings.js');
+});
+
+test('loads shared listing storage from bundled source code', async () => {
+  const storage = await loadSharedListingsStorage();
+
+  assert.equal(typeof storage.upsertSharedListings, 'function');
+  assert.equal(typeof storage.getAllSharedListings, 'function');
+  assert.equal(typeof storage.getSharedListingById, 'function');
 });
