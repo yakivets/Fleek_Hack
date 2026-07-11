@@ -87,6 +87,64 @@ button {
   pointer-events: none;
 }
 
+.inspection-steps {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 28px 0;
+}
+
+.inspection-steps::before {
+  position: absolute;
+  top: 18px;
+  right: 16%;
+  left: 16%;
+  height: 1px;
+  background: var(--stone-deep);
+  content: '';
+}
+
+.inspection-steps > li {
+  position: relative;
+  z-index: 1;
+  width: 31%;
+  text-align: center;
+}
+
+.inspection-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 9px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--stone-surface);
+  box-shadow: inset 0 0 0 1.2px var(--moss);
+  color: var(--moss-deep);
+  transition: transform 180ms var(--ease-out);
+}
+
+.inspection-steps > li:hover .inspection-icon {
+  transform: scale(1.06);
+}
+
+.inspection-steps strong,
+.inspection-steps small {
+  display: block;
+}
+
+.inspection-steps strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.inspection-steps small {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
 .capture-frame {
   border: 1px solid oklch(0.94 0.008 130 / 0.45);
   box-shadow:
@@ -173,6 +231,9 @@ textarea::placeholder {
   .fade-in,
   .soft-pulse {
     animation: none;
+  }
+  .inspection-icon {
+    transition: none;
   }
   * {
     transition-duration: 0.01ms !important;

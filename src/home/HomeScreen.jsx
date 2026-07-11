@@ -6,12 +6,16 @@ const STEPS = [
   ['Track', 'Ready for your shop'],
 ];
 
-export default function HomeScreen({ onScan, onBundle }) {
+export default function HomeScreen({ onScan, onBundle, onItems }) {
   const items = useStore((s) => s.items);
+  const bundles = useStore((s) => s.bundles);
+  const activeBundleId = useStore((s) => s.activeBundleId);
+  const captureMode = useStore((s) => s.captureMode);
   const total = items.reduce((sum, item) => sum + (item.suggested_price_gbp || 0), 0);
   const posted = items.filter((item) => item.status === 'posted').length;
   const latest = items.at(-1);
   const progress = items.length ? (posted / items.length) * 100 : 0;
+  const activeBundle = bundles.find((bundle) => bundle.id === activeBundleId);
 
   return (
     <div className="h-full overflow-y-auto px-5 pb-8 pt-5">
@@ -24,10 +28,10 @@ export default function HomeScreen({ onScan, onBundle }) {
         </div>
         {items.length > 0 && (
           <button
-            onClick={onBundle}
+            onClick={onItems}
             className="min-h-11 rounded-full bg-[var(--stone-surface)] px-4 text-sm font-medium text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--stone-deep)]"
           >
-            {items.length} in bundle
+            {items.length} {items.length === 1 ? 'listing' : 'listings'}
           </button>
         )}
       </header>
@@ -50,25 +54,49 @@ export default function HomeScreen({ onScan, onBundle }) {
             onClick={onScan}
             className="mt-7 flex min-h-12 w-full items-center justify-between rounded-[var(--radius)] bg-[var(--stone)] px-4 font-bold text-[var(--moss-deep)] transition duration-200 hover:bg-white active:scale-[0.985]"
           >
-            <span>{items.length ? 'Scan next item' : 'Scan first item'}</span>
+            <span>
+              {activeBundle && captureMode === 'bundle'
+                ? `Continue ${activeBundle.name}`
+                : items.length
+                  ? 'Scan next item'
+                  : 'Scan first item'}
+            </span>
             <ArrowIcon />
           </button>
         </div>
       </section>
 
-      <ol className="my-7 grid grid-cols-3 gap-3" aria-label="How Relist works">
-        {STEPS.map(([title, detail], index) => (
-          <li key={title} className="min-w-0">
-            <span className="mb-3 block h-px bg-[var(--stone-deep)]">
-              <span className="block h-1.5 w-1.5 -translate-y-[2.5px] rounded-full bg-[var(--moss)]" />
-            </span>
-            <span className="block text-sm font-bold">{title}</span>
-            <span className="mt-0.5 block text-xs leading-snug text-[var(--ink-muted)]">
-              {detail}
-            </span>
-            <span className="sr-only">Step {index + 1}</span>
-          </li>
-        ))}
+      <ol className="inspection-steps" aria-label="How Relist works">
+        <li>
+          <span className="inspection-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="M4 7V4h3M13 4h3v3M16 13v3h-3M7 16H4v-3M7 10h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </span>
+          <strong>{STEPS[0][0]}</strong>
+          <small>{STEPS[0][1]}</small>
+          <span className="sr-only">Step 1</span>
+        </li>
+        <li>
+          <span className="inspection-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="m5 10 3 3 7-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <strong>{STEPS[1][0]}</strong>
+          <small>{STEPS[1][1]}</small>
+          <span className="sr-only">Step 2</span>
+        </li>
+        <li>
+          <span className="inspection-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="M6 4h8v12H6zM8 7h4M8 10h4M8 13h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <strong>{STEPS[2][0]}</strong>
+          <small>{STEPS[2][1]}</small>
+          <span className="sr-only">Step 3</span>
+        </li>
       </ol>
 
       {items.length ? (
@@ -76,7 +104,7 @@ export default function HomeScreen({ onScan, onBundle }) {
           <div className="flex items-end justify-between gap-4">
             <div>
               <h2 id="bundle-progress" className="text-xl font-medium tracking-[-0.02em]">
-                Bundle progress
+                Listing progress
               </h2>
               <p className="mt-1 text-sm text-[var(--ink-muted)]">
                 {posted} posted · {items.length - posted} ready to post
@@ -104,7 +132,7 @@ export default function HomeScreen({ onScan, onBundle }) {
 
           {latest && (
             <button
-              onClick={onBundle}
+              onClick={onItems}
               className="mt-5 flex min-h-[72px] w-full items-center gap-3 border-y border-[var(--stone-deep)] py-3 text-left"
             >
               {latest.images[0] ? (
@@ -121,6 +149,14 @@ export default function HomeScreen({ onScan, onBundle }) {
                 <span className="mt-0.5 block truncate font-medium">{latest.title}</span>
               </span>
               <ArrowIcon />
+            </button>
+          )}
+          {bundles.length > 0 && (
+            <button
+              onClick={onBundle}
+              className="mt-3 min-h-11 w-full rounded-full text-sm font-bold text-[var(--moss-deep)]"
+            >
+              View {bundles.length} {bundles.length === 1 ? 'bundle' : 'bundles'}
             </button>
           )}
         </section>

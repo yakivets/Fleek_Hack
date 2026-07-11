@@ -1,6 +1,6 @@
 # Builder B — Dashboard + Backend
 
-> **STATUS: complete and live-tested.** The dashboard checklist is implemented. The n8n workflow was imported, configured with OpenAI, activated, connected through `.env.local`, and successfully exercised from the phone capture flow. The shared-card question is settled: dashboard imports Builder A's `ListingEditor` — don't duplicate it.
+> **STATUS: complete and live-tested; bundle extension implemented.** The n8n workflow is live. The dashboard now includes All Items and Bundles views, grouped category sections, item moves, bundle/group renaming, lifecycle controls, totals, and IndexedDB persistence.
 
 Owns: the n8n workflow, the dashboard screen, the mock "Post" action. Only touch files under `src/dashboard/` plus your one-time contribution to `src/App.jsx` and `src/store.js` during the initial sync.
 
@@ -52,9 +52,7 @@ Phone capture
 
 The OpenAI credential remains inside n8n. The workflow definition is available at `docs/FLEEK_N8N_WORKFLOW.json`, and `.env.example` documents frontend configuration. There is intentionally no database, authentication, or real marketplace API in this version.
 
-## Future plan — Bundles dashboard
-
-Do not implement this during the current hackathon pass.
+## Delivered extension — Bundles dashboard
 
 ### Navigation
 
@@ -85,6 +83,8 @@ The group is based on each listing's normalized category rather than scan order.
 ### Corrections and controls
 
 - Move an item between category groups when AI classification is wrong.
+- On touch devices, hold the item's grip and drag it directly onto another group.
+- While dragging, reveal an explicit delete drop zone; require confirmation before removal.
 - Rename a bundle or category group without changing the AI-generated listing title.
 - Continue scanning into an unfinished bundle.
 - Finish/archive a bundle without deleting its items.
@@ -92,7 +92,7 @@ The group is based on each listing's normalized category rather than scan order.
 
 ### State and persistence
 
-For the next prototype, extend the Zustand store with bundle/session state and persist it to browser storage so a refresh does not erase a long scanning session. A real database is only needed when accounts, cross-device access, or production marketplace posting become requirements.
+The Zustand store includes bundle/session state and persists it to IndexedDB so a refresh does not erase a long scanning session. A real database is only needed when accounts, cross-device access, or production marketplace posting become requirements.
 
 ### Backend impact
 
@@ -100,8 +100,9 @@ The existing n8n workflow can remain unchanged because it already returns `categ
 
 ### Acceptance criteria
 
-1. Existing All Items behavior remains unchanged.
-2. Bundle cards display accurate counts and total suggested value.
-3. Items are grouped by normalized category, not capture order.
-4. Moving an item updates both its group and bundle totals immediately.
-5. Refreshing the app preserves an active bundle session.
+1. ✅ Existing All Items behavior remains available.
+2. ✅ Bundle cards display counts and total suggested value.
+3. ✅ Items are grouped by normalized category, not capture order.
+4. ✅ Moving an item updates its group and bundle totals immediately.
+5. ✅ IndexedDB preserves active bundle sessions across refreshes.
+6. ✅ Hold-and-drag moves items on mobile; destructive drops require confirmation.

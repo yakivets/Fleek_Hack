@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../store.js';
+import { normalizeCategory, useStore } from '../store.js';
 import { useCamera, grabFrame, fileToDataURI } from './useCamera.js';
 import { analyzeItem } from './api.js';
 import ListingEditor from './ListingEditor.jsx';
@@ -12,15 +12,26 @@ const GRADE_LABELS = {
   D: 'Well worn',
 };
 
-export default function CaptureScreen() {
+export default function CaptureScreen({ onFinishBundle }) {
   const addItem = useStore((s) => s.addItem);
-  const itemCount = useStore((s) => s.items.length);
+  const items = useStore((s) => s.items);
+  const bundles = useStore((s) => s.bundles);
+  const captureMode = useStore((s) => s.captureMode);
+  const activeBundleId = useStore((s) => s.activeBundleId);
+  const setCaptureMode = useStore((s) => s.setCaptureMode);
+  const startBundle = useStore((s) => s.startBundle);
+  const finishBundle = useStore((s) => s.finishBundle);
   const [mode, setMode] = useState('camera'); // camera | analyzing | review
   const [photos, setPhotos] = useState([]);
   const [draft, setDraft] = useState(null);
   const [error, setError] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [savedNotice, setSavedNotice] = useState('');
   const fileInputRef = useRef(null);
+
+  const activeBundle = bundles.find((bundle) => bundle.id === activeBundleId);
+  const bundleItemCount = activeBundleId
+    ? items.filter((item) => item.bundle_id === activeBundleId).length
+    : 0;
 
   const cameraActive = mode !== 'review';
   const { videoRef, status } = useCamera(cameraActive);
@@ -34,10 +45,10 @@ export default function CaptureScreen() {
   }, [mode, videoRef]);
 
   useEffect(() => {
-    if (!savedFlash) return;
-    const t = setTimeout(() => setSavedFlash(false), 1400);
+    if (!savedNotice) return;
+    const t = setTimeout(() => setSavedNotice(''), 1800);
     return () => clearTimeout(t);
-  }, [savedFlash]);
+  }, [savedNotice]);
 
   const capture = () => {
     const v = videoRef.current;
@@ -64,12 +75,21 @@ export default function CaptureScreen() {
     }
   };
 
+  const chooseCaptureMode = (nextMode) => {
+    if (nextMode === 'bundle' && !activeBundleId) startBundle();
+    else setCaptureMode(nextMode);
+  };
+
   const save = (edited) => {
-    addItem(edited);
+    let bundleId = null;
+    if (captureMode === 'bundle') bundleId = activeBundleId || startBundle();
+    addItem({ ...edited, bundle_id: bundleId });
     setPhotos([]);
     setDraft(null);
     setMode('camera');
-    setSavedFlash(true);
+    setSavedNotice(
+      bundleId ? `Added to ${normalizeCategory(edited.category)}` : 'Listing saved',
+    );
   };
 
   const discard = () => {
@@ -79,15 +99,30 @@ export default function CaptureScreen() {
     setMode('camera');
   };
 
+  const finishActiveBundle = () => {
+    if (!activeBundleId || photos.length > 0) return;
+    const id = activeBundleId;
+    finishBundle(id);
+    onFinishBundle?.(id);
+  };
+
   if (mode === 'review' && draft) {
+    const destination =
+      captureMode === 'bundle' ? normalizeCategory(draft.category) : 'All items';
     return (
       <div className="fade-in h-full overflow-y-auto px-5 pb-6 pt-5">
-        <p className="text-sm font-medium text-[var(--moss-deep)]">Listing ready</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-[var(--moss-deep)]">Listing ready</p>
+          <span className="rounded-full bg-[var(--stone-surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)]">
+            {captureMode === 'bundle' ? activeBundle?.name || 'Bundle' : 'Single'}
+          </span>
+        </div>
         <h1 className="mt-1 text-[1.5rem] font-medium leading-tight tracking-[-0.02em] [text-wrap:balance]">
           Check the essentials
         </h1>
         <p className="mt-2 text-sm text-[var(--ink-muted)]">
-          Relist found the details that matter most. Save now or fine-tune anything below.
+          Relist will save this under <strong className="font-medium text-[var(--ink)]">{destination}</strong>.
+          Fine-tune the category below if it belongs somewhere else.
         </p>
 
         <section className="my-5 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--stone-surface)]">
@@ -121,7 +156,7 @@ export default function CaptureScreen() {
           onClick={() => save(draft)}
           className="min-h-12 w-full rounded-[var(--radius)] bg-[var(--moss)] px-5 text-sm font-bold text-[var(--stone)] transition-colors duration-150 hover:bg-[var(--moss-deep)]"
         >
-          Save & scan next
+          {captureMode === 'bundle' ? `Add to ${destination} & continue` : 'Save & scan next'}
         </button>
 
         <details className="mt-3 rounded-[var(--radius-lg)] bg-[var(--stone-surface)]">
@@ -161,6 +196,13 @@ export default function CaptureScreen() {
           Allow camera access in your browser settings, or add photos of the item from your
           library instead.
         </p>
+        <ModeControls
+          mode={captureMode}
+          activeBundle={activeBundle}
+          disabled={photos.length > 0}
+          onChange={chooseCaptureMode}
+          onFinish={finishActiveBundle}
+        />
         {error && <ErrorBanner onRetry={analyze} />}
         <PhotoStrip photos={photos} onRemove={(i) => setPhotos((p) => p.filter((_, j) => j !== i))} light />
         <div className="mt-auto flex flex-col gap-3">
@@ -206,7 +248,11 @@ export default function CaptureScreen() {
           />
           <div className="pointer-events-none absolute inset-x-5 top-5 z-10 flex items-start justify-between text-[var(--stone)]">
             <div>
-              <p className="font-bold">Item {itemCount + 1}</p>
+              <p className="font-bold">
+                {captureMode === 'bundle'
+                  ? `${activeBundle?.name || 'Bundle'} · item ${bundleItemCount + 1}`
+                  : `Item ${items.length + 1}`}
+              </p>
               <p className="mt-0.5 text-xs text-[oklch(0.94_0.008_130_/_0.76)]">
                 Front · back · label · wear
               </p>
@@ -215,17 +261,27 @@ export default function CaptureScreen() {
               {photos.length || 0}/{MAX_PHOTOS}
             </span>
           </div>
-          <div className="capture-frame pointer-events-none absolute inset-x-8 bottom-40 top-24 z-[1] rounded-[24px]" aria-hidden="true" />
+          <div className="absolute inset-x-5 top-[4.75rem] z-10">
+            <ModeControls
+              mode={captureMode}
+              activeBundle={activeBundle}
+              disabled={photos.length > 0}
+              onChange={chooseCaptureMode}
+              onFinish={finishActiveBundle}
+              dark
+            />
+          </div>
+          <div className="capture-frame pointer-events-none absolute inset-x-8 bottom-40 top-36 z-[1] rounded-[24px]" aria-hidden="true" />
         </>
       )}
 
-      {savedFlash && (
+      {savedNotice && (
         <p
           role="status"
           className="settle-in absolute inset-x-0 top-5 z-10 mx-auto w-fit rounded-full px-4 py-1.5 text-sm font-bold text-[var(--stone)]"
           style={{ background: 'var(--moss)' }}
         >
-          Saved to bundle
+          {savedNotice}
         </p>
       )}
 
@@ -270,6 +326,52 @@ export default function CaptureScreen() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ModeControls({ mode, activeBundle, disabled, onChange, onFinish, dark }) {
+  const surface = dark
+    ? 'bg-[oklch(0.2_0.012_130_/_0.58)] text-[var(--stone)] backdrop-blur-sm'
+    : 'bg-[var(--stone-surface)] text-[var(--ink)]';
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div
+        className={`flex rounded-full p-1 ${surface}`}
+        role="group"
+        aria-label="Capture mode"
+      >
+        {['single', 'bundle'].map((value) => {
+          const active = mode === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              disabled={disabled}
+              aria-pressed={active}
+              onClick={() => onChange(value)}
+              className="min-h-9 rounded-full px-3 text-xs font-bold transition-colors duration-150 disabled:opacity-45"
+              style={
+                active
+                  ? { background: 'var(--moss)', color: 'var(--stone)' }
+                  : undefined
+              }
+            >
+              {value === 'single' ? 'Single' : activeBundle ? 'Bundle' : 'New bundle'}
+            </button>
+          );
+        })}
+      </div>
+      {mode === 'bundle' && activeBundle && (
+        <button
+          type="button"
+          onClick={onFinish}
+          disabled={disabled}
+          className={`min-h-11 rounded-full px-3.5 text-xs font-bold disabled:opacity-45 ${surface}`}
+        >
+          Finish bundle
+        </button>
       )}
     </div>
   );

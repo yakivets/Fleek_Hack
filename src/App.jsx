@@ -7,12 +7,33 @@ import DashboardScreen from './dashboard/DashboardScreen.jsx';
 const NAV = [
   { key: 'home', label: 'Home' },
   { key: 'capture', label: 'Scan' },
-  { key: 'dashboard', label: 'Bundle' },
+  { key: 'dashboard', label: 'Library' },
 ];
 
 export default function App() {
   const [screen, setScreen] = useState('home');
+  const [dashboardEntry, setDashboardEntry] = useState({
+    view: 'items',
+    bundleId: null,
+  });
   const count = useStore((s) => s.items.length);
+  const hasHydrated = useStore((s) => s.hasHydrated);
+  const continueBundle = useStore((s) => s.continueBundle);
+
+  const openDashboard = (view = 'items', bundleId = null) => {
+    setDashboardEntry({ view, bundleId });
+    setScreen('dashboard');
+  };
+
+  if (!hasHydrated) {
+    return (
+      <div className="mx-auto grid h-full max-w-md place-items-center bg-[var(--stone)] px-6 text-center">
+        <p className="soft-pulse text-sm font-medium text-[var(--ink-muted)]" role="status">
+          Restoring your workbench…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col bg-[var(--stone)]">
@@ -20,12 +41,24 @@ export default function App() {
         {screen === 'home' ? (
           <HomeScreen
             onScan={() => setScreen('capture')}
-            onBundle={() => setScreen('dashboard')}
+            onBundle={() => openDashboard('bundles')}
+            onItems={() => openDashboard('items')}
           />
         ) : screen === 'capture' ? (
-          <CaptureScreen />
+          <CaptureScreen
+            onFinishBundle={(bundleId) => openDashboard('bundles', bundleId)}
+          />
         ) : (
-          <DashboardScreen onScanFirst={() => setScreen('capture')} />
+          <DashboardScreen
+            key={`${dashboardEntry.view}-${dashboardEntry.bundleId || 'all'}`}
+            initialView={dashboardEntry.view}
+            initialBundleId={dashboardEntry.bundleId}
+            onScanFirst={() => setScreen('capture')}
+            onContinueBundle={(bundleId) => {
+              continueBundle(bundleId);
+              setScreen('capture');
+            }}
+          />
         )}
       </main>
 
@@ -38,7 +71,10 @@ export default function App() {
           return (
             <button
               key={key}
-              onClick={() => setScreen(key)}
+              onClick={() => {
+                if (key === 'dashboard') openDashboard('items');
+                else setScreen(key);
+              }}
               aria-current={active ? 'page' : undefined}
               className="relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] transition-colors duration-150"
               style={{

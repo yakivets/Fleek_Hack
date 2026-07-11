@@ -18,9 +18,9 @@ Do not build anything that duplicates Fleek's own wholesale-intake tooling (Flee
 - **Capture mode:** rapid tap-to-capture screenshots (canvas grab from a live `getUserMedia` video element), not continuous video/live-streaming. Live-streaming and auto item-boundary detection are explicitly deferred — see Priorities below.
 - **"Post to eBay/Vinted":** hardcoded/mocked. Flips a status badge client-side. No real marketplace integration.
 
-## Status: full UI and backend live
+## Status: full UI, backend, and bundle workflow live
 
-The complete UI is implemented and building (`npm run build` passes). The n8n workflow has been deployed, connected through `VITE_N8N_WEBHOOK_URL`, and successfully tested end-to-end from a phone. The empty webhook setting still enables the built-in mock backend for UI-only development. The reusable workflow definition remains at `docs/FLEEK_N8N_WORKFLOW.json`.
+The complete UI is implemented and building (`npm run build` passes). The n8n workflow has been deployed, connected through `VITE_N8N_WEBHOOK_URL`, and successfully tested end-to-end from a phone. Single and Bundle capture modes are implemented; bundle sessions automatically group mixed garments, persist to IndexedDB, and appear in the Bundles dashboard. The empty webhook setting still enables the built-in mock backend for UI-only development.
 
 Run: `npm install`, then `npm run dev`. Served over HTTPS (self-signed, via `@vitejs/plugin-basic-ssl`) so a phone on the same wifi can open the Network URL and use its camera — accept the cert warning once. Camera-denied/desktop-without-webcam falls back to a file-upload flow automatically.
 
@@ -64,9 +64,9 @@ src/
 5. "Post" mock button
 6. Live-streaming capture / auto item-boundary detection — stretch only, cut first
 
-## Deferred roadmap
+## Delivered bundle extension
 
-The next planned feature is a **Single / Bundle** capture choice. Single preserves the current flow. Bundle mode keeps a multi-item scanning session open and automatically groups mixed garments by normalized AI category. The dashboard will gain a Bundles view with grouped items, counts, combined suggested value, correction/move controls, and browser persistence. This is documented in `docs/PLAN_BUILDER_A.md` and `docs/PLAN_BUILDER_B.md`; do not implement it during the current hackathon pass.
+The app includes a **Single / Bundle** capture choice. Single preserves the original flow. Bundle mode keeps a multi-item scanning session open and automatically groups mixed garments by normalized AI category. The Bundles dashboard provides grouped items, counts, combined suggested value, hold-and-drag correction, confirmed deletion, renaming, lifecycle actions, and browser persistence. See `docs/PLAN_BUILDER_A.md`, `docs/PLAN_BUILDER_B.md`, and `docs/CONTRACT.md`.
 
 ## Timeline (7 hrs)
 

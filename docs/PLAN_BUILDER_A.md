@@ -1,6 +1,6 @@
 # Builder A — Capture Flow
 
-> **STATUS: complete and live-tested.** The capture flow is implemented, connected to the production n8n webhook through `VITE_N8N_WEBHOOK_URL`, and successfully tested on a phone. Extra beyond the original plan: file-upload fallback when camera is unavailable, saved-confirmation flash, photo removal on thumbnail tap, and environment-based mock/live backend switching.
+> **STATUS: complete and live-tested; bundle extension implemented.** The capture flow is connected to production n8n and tested on a phone. Single mode preserves the original flow. Bundle mode now supports persistent multi-item sessions, repeated capture, automatic category routing, destination confirmation, and finishing into the grouped dashboard.
 
 Owns: camera access, rapid tap-to-capture UI, calling the n8n webhook, the listing-review/edit screen. Only touch files under `src/capture/` plus your one-time contribution to `src/App.jsx` and `src/store.js` during the initial sync.
 
@@ -37,9 +37,7 @@ src/capture/
 - Test your capture → webhook flow against Builder B's n8n workflow as soon as it's live (should be well before the 3:00 merge checkpoint) — don't wait until the checkpoint to send a real request for the first time.
 - Keep captured images at reasonable resolution before encoding (e.g. cap canvas width at ~1024px) — full camera resolution photos make for slow uploads on venue wifi and bigger OpenAI payloads for no quality benefit at this task.
 
-## Future plan — Single and Bundle capture modes
-
-Do not implement this during the current hackathon pass. The existing single-item flow remains the default and must not regress.
+## Delivered extension — Single and Bundle capture modes
 
 ### Entry point
 
@@ -62,20 +60,18 @@ Example: while scanning a mixed caps-and-jeans lot, a pair of jeans captured bet
 - Let the reseller correct classification before saving or move an item later from the dashboard.
 - Preserve captured work if the user moves between Capture and Dashboard during the session.
 
-### Deferred data proposal
+### Implemented data
 
-Do not change `docs/CONTRACT.md` until implementation begins. The likely additions are:
-
-- A bundle/session object with `id`, `name`, `created_at`, and item IDs.
+- A bundle/session object with `id`, `name`, `created_at`, and lifecycle status.
 - A stable `category_key` on each listing for grouping.
-- Optional `bundle_id` on each listing.
+- A nullable `bundle_id` on each listing.
 
-Prefer deriving category groups from listings instead of storing duplicate item arrays unless persistence requirements make that necessary.
+Category groups and membership are derived from listings instead of storing duplicate item arrays.
 
 ### Acceptance criteria
 
-1. Single mode behaves exactly as it does now.
-2. Bundle mode supports repeated capture without ending the session after each item.
-3. Mixed scan order produces correct category groups.
-4. The user can correct or move a misclassified item.
-5. Finishing a bundle opens its grouped dashboard view.
+1. ✅ Single mode behaves as before.
+2. ✅ Bundle mode supports repeated capture without ending the session after each item.
+3. ✅ Mixed scan order produces normalized category groups.
+4. ✅ The user can correct or move a misclassified item.
+5. ✅ Finishing a bundle opens its grouped dashboard view.

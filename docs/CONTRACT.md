@@ -19,28 +19,38 @@ Every item in the app, from capture through dashboard, is this shape:
   suggested_price_gbp: number,
   price_reasoning: string,
   status: "draft" | "posted",
+  category_key: string,     // normalized client-side grouping, e.g. "Jeans"
+  bundle_id: string | null, // null for Single mode
 }
 ```
 
-## Store API (`src/store.js`)
+`category_key` and `bundle_id` are added by the frontend. The n8n response contract remains unchanged.
 
-Zustand store, written once together, then frozen:
+## Bundle object shape
 
 ```js
-import { create } from 'zustand';
-
-export const useStore = create((set) => ({
-  items: [],
-  addItem: (item) => set((s) => ({ items: [...s.items, item] })),
-  updateItem: (id, patch) => set((s) => ({
-    items: s.items.map(i => i.id === id ? { ...i, ...patch } : i)
-  })),
-}));
+{
+  id: string,
+  name: string,
+  created_at: string, // ISO timestamp
+  status: "active" | "finished" | "archived",
+}
 ```
 
-- Builder A calls `addItem()` once per successfully analyzed item (after n8n responds).
-- Builder B's dashboard only ever reads `items` and calls `updateItem()` (for edits and for flipping `status` to `"posted"`).
-- Neither builder edits `store.js` after the initial 15-minute sync unless a field needs to change — and if so, tell the other person before touching it.
+Bundle membership is derived from each listing's `bundle_id`; bundles do not store a duplicate item-ID array.
+
+## Store API (`src/store.js`)
+
+The Zustand store now owns:
+
+- `items`, `bundles`, `activeBundleId`, and `captureMode`.
+- `startBundle`, `continueBundle`, `finishBundle`, `archiveBundle`, and `renameBundle`.
+- `addItem`, `updateItem`, and confirmed `removeItem`.
+- `renameCategoryGroup` for moving every matching item without changing listing copy.
+
+The persisted subset is stored in IndexedDB because base64 item photos can exceed localStorage limits. If IndexedDB is unavailable, the app remains usable with an in-memory fallback for that session.
+
+`normalizeCategory()` maps variable AI labels into stable client-side groups. Editing a listing category recomputes its group unless the user explicitly moved it.
 
 ## n8n webhook contract
 
@@ -68,7 +78,7 @@ Content-Type: application/json
   "price_reasoning": "string"
 }
 ```
-This is exactly the Listing shape minus `id`, `images`, and `status` — Builder A's `api.js` adds those three fields client-side before calling `addItem()`.
+This is the AI portion of the Listing shape. The frontend adds `id`, `images`, `status`, `category_key`, and `bundle_id`.
 
 On failure (parse error, network error), the frontend should show a retry option rather than silently dropping the item — don't add elaborate error handling beyond that for the demo.
 
@@ -79,5 +89,5 @@ Three client-side screens, kept in a single `useState` to avoid a router depende
 ```
 Home    → HomeScreen
 Scan    → CaptureScreen
-Bundle  → DashboardScreen
+Library → DashboardScreen (All items | Bundles)
 ```
