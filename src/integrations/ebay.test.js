@@ -3,16 +3,19 @@ import assert from 'node:assert/strict';
 
 import {
   getSharedListingsModuleUrl,
+  hasReadyStudioPhotos,
   loadSharedListingsStorage,
   mapFleekItemToEbayProduct,
   shareFleekItemsToEbay,
 } from './ebay.js';
 
 test('maps a complete Fleek item to the eBay product contract', () => {
-  const images = ['data:image/jpeg;base64,first', 'data:image/jpeg;base64,second'];
+  const images = ['data:image/jpeg;base64,studio-first', 'data:image/jpeg;base64,studio-second'];
   const product = mapFleekItemToEbayProduct({
     id: 'item-123',
-    images,
+    images: ['data:image/jpeg;base64,original-first', 'data:image/jpeg;base64,original-second'],
+    enhanced_images: images,
+    enhancement_status: 'ready',
     title: 'Vintage jacket',
     category: 'Sportswear',
     brand: 'Nike',
@@ -56,6 +59,9 @@ test('uses stable IDs without double-prefixing and supplies clone-safe defaults'
   const product = mapFleekItemToEbayProduct({
     id: 'fleek-existing-id',
     condition_grade: 'D',
+    images: ['original.jpg'],
+    enhanced_images: ['studio.jpg'],
+    enhancement_status: 'ready',
   });
 
   assert.equal(product.id, 'fleek-existing-id');
@@ -65,8 +71,8 @@ test('uses stable IDs without double-prefixing and supplies clone-safe defaults'
   assert.equal(product.brand, 'Unbranded');
   assert.equal(product.price, 0);
   assert.equal(product.condition, 'Well worn');
-  assert.deepEqual(product.imageUrl, []);
-  assert.equal(product.image, '');
+  assert.deepEqual(product.imageUrl, ['studio.jpg']);
+  assert.equal(product.image, 'studio.jpg');
   assert.equal(product.details, '');
 });
 
@@ -80,7 +86,13 @@ test('maps every supported Fleek condition grade to user-facing text', () => {
 
   for (const [grade, condition] of Object.entries(expected)) {
     assert.equal(
-      mapFleekItemToEbayProduct({ id: grade, condition_grade: grade }).condition,
+      mapFleekItemToEbayProduct({
+        id: grade,
+        condition_grade: grade,
+        images: ['original.jpg'],
+        enhanced_images: ['studio.jpg'],
+        enhancement_status: 'ready',
+      }).condition,
       condition,
     );
   }
@@ -93,10 +105,12 @@ test('requires a source ID so shared listings remain idempotent', () => {
   );
 });
 
-test('normalizes captured images and defects to non-empty strings', () => {
+test('shares only normalized studio images and defects', () => {
   const product = mapFleekItemToEbayProduct({
     id: 'normalized',
-    images: [' first.jpg ', '', null, '   ', 'second.jpg'],
+    images: ['original-one.jpg', 'original-two.jpg'],
+    enhanced_images: [' first.jpg ', 'second.jpg'],
+    enhancement_status: 'ready',
     defects: [' Scuff ', false, '', 'Loose thread'],
   });
 
@@ -105,10 +119,44 @@ test('normalizes captured images and defects to non-empty strings', () => {
   assert.deepEqual(product.sourceMetadata.defects, ['Scuff', 'Loose thread']);
 });
 
+test('requires every studio photo to be ready before creating an eBay product', () => {
+  const processing = {
+    id: 'processing',
+    images: ['one.jpg', 'two.jpg'],
+    enhanced_images: ['studio-one.jpg', null],
+    enhancement_status: 'processing',
+  };
+
+  assert.equal(hasReadyStudioPhotos(processing), false);
+  assert.throws(() => mapFleekItemToEbayProduct(processing), /studio photos must be ready/i);
+  assert.equal(
+    hasReadyStudioPhotos({
+      ...processing,
+      enhanced_images: ['studio-one.jpg', 'studio-two.jpg'],
+      enhancement_status: 'ready',
+    }),
+    true,
+  );
+});
+
 test('shares the fully mapped array through one injected batch upsert', async () => {
   const items = [
-    { id: 'one', title: 'One', condition_grade: 'A', images: ['one.jpg'] },
-    { id: 'two', title: 'Two', condition_grade: 'C', images: ['two.jpg'] },
+    {
+      id: 'one',
+      title: 'One',
+      condition_grade: 'A',
+      images: ['one.jpg'],
+      enhanced_images: ['studio-one.jpg'],
+      enhancement_status: 'ready',
+    },
+    {
+      id: 'two',
+      title: 'Two',
+      condition_grade: 'C',
+      images: ['two.jpg'],
+      enhanced_images: ['studio-two.jpg'],
+      enhancement_status: 'ready',
+    },
   ];
   const calls = [];
   const storage = {

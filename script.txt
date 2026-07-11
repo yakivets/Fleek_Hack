@@ -1,0 +1,29 @@
+INTRO
+
+A bundle of 50 T-shirts can take hours to list online.
+
+With Relist, you take a few photos and AI creates the listing for you.
+
+We don't have all 50 T-shirts with us today, so we'll show the same process using a  we already have.
+
+
+DEMO
+
+Mykyta will now show you how it works.
+
+First, we open the camera and take a few photos of an item.
+
+The AI cleans up the photos, checks the condition and any defects, suggests a price, and writes the listing.
+
+We can then review each listing, change anything we need, and post an item to eBay or Vinted.
+
+For this demo, the listing opens in our integrated marketplace.
+
+And here it is: a complete listing with the photos, description, condition, and price.
+
+
+CLOSE
+
+Creating a listing manually takes around ten minutes. Relist can cut that down to about one minute, saving resellers up to 90% of their time on this repetitive task.
+
+We built Relist using Cursor, n8n, and OpenAI models for listing generation and image processing.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_CATEGORY_GROUPS, MARKETPLACES, useStore } from '../store.js';
-import { shareFleekItemsToEbay } from '../integrations/ebay.js';
+import { hasReadyStudioPhotos, shareFleekItemsToEbay } from '../integrations/ebay.js';
 import ListingEditor from '../capture/ListingEditor.jsx';
 import { getEbayProductPath, shareMarketplaceItems } from './shareDraftItems.js';
 
@@ -84,9 +84,19 @@ function AllItemsView({ onScanFirst }) {
   const items = useStore((state) => state.items);
   const updateItem = useStore((state) => state.updateItem);
   const undoItemPosting = useStore((state) => state.undoItemPosting);
+  const removeItem = useStore((state) => state.removeItem);
   const [sort, setSort] = useState('newest');
   const [filter, setFilter] = useState('All');
   const [openId, setOpenId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const deleteDialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = deleteDialogRef.current;
+    if (!dialog) return;
+    if (pendingDelete && !dialog.open) dialog.showModal();
+    if (!pendingDelete && dialog.open) dialog.close();
+  }, [pendingDelete]);
 
   const visible = useMemo(() => {
     let list = filter === 'All' ? items : items.filter((item) => item.status === filter.toLowerCase());
@@ -179,6 +189,7 @@ function AllItemsView({ onScanFirst }) {
               updateItem(item.id, draft);
               setOpenId(null);
             }}
+            onRequestDelete={() => setPendingDelete(item)}
           />
         ))}
         {visible.length === 0 && (
@@ -193,6 +204,40 @@ function AllItemsView({ onScanFirst }) {
           </li>
         )}
       </ul>
+
+      <dialog
+        ref={deleteDialogRef}
+        onCancel={() => setPendingDelete(null)}
+        className="w-[min(22rem,calc(100%-2rem))] rounded-[var(--radius-lg)] bg-[var(--stone)] p-0 text-[var(--ink)] shadow-[var(--shadow-lift)] backdrop:bg-[oklch(0.2_0.012_130/0.45)]"
+      >
+        <div className="p-5">
+          <h2 className="text-xl font-medium">Delete this item?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--ink-muted)]">
+            {pendingDelete?.title} will be permanently removed from your library.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingDelete(null)}
+              className="min-h-12 flex-1 rounded-[var(--radius)] bg-[var(--stone-surface)] px-4 text-sm font-bold"
+            >
+              Keep item
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!pendingDelete) return;
+                removeItem(pendingDelete.id);
+                setOpenId(null);
+                setPendingDelete(null);
+              }}
+              className="min-h-12 flex-1 rounded-[var(--radius)] bg-[var(--clay-deep)] px-4 text-sm font-bold text-[var(--stone)]"
+            >
+              Delete item
+            </button>
+          </div>
+        </div>
+      </dialog>
     </>
   );
 }
@@ -923,6 +968,18 @@ function MarketplacePanel({ items, bundleId = null }) {
 
   const act = async (marketplace) => {
     const label = marketplaceLabel(marketplace);
+    if (
+      marketplace === 'ebay'
+      && items.some(
+        (item) => !item.marketplace_posts?.ebay && !hasReadyStudioPhotos(item),
+      )
+    ) {
+      setFeedback({
+        type: 'status',
+        text: 'eBay posting unlocks when all studio photos are ready.',
+      });
+      return;
+    }
     if (!connections[marketplace]) {
       connectMarketplace(marketplace);
       setFeedback({ type: 'status', text: `${label} connected. Tap again to post.` });
@@ -984,8 +1041,18 @@ function MarketplacePanel({ items, bundleId = null }) {
           const allPosted =
             items.length > 0
             && items.every((item) => item.marketplace_posts?.[marketplace]);
+          const studioPhotosReady =
+            marketplace !== 'ebay'
+            || (
+              items.some((item) => !item.marketplace_posts?.ebay)
+              && items
+                .filter((item) => !item.marketplace_posts?.ebay)
+                .every(hasReadyStudioPhotos)
+            );
           const label = marketplaceLabel(marketplace);
-          const buttonLabel = !connected
+          const buttonLabel = marketplace === 'ebay' && !allPosted && !studioPhotosReady
+            ? 'Waiting for studio photos'
+            : !connected
             ? `Connect ${label}`
             : marketplace === 'ebay' && isSharing
               ? `Posting to ${label}…`
@@ -1004,6 +1071,7 @@ function MarketplacePanel({ items, bundleId = null }) {
                 (connected && allPosted)
                 || (connected && items.length === 0)
                 || (marketplace === 'ebay' && isSharing)
+                || (marketplace === 'ebay' && !allPosted && !studioPhotosReady)
               }
               className="min-h-12 rounded-[var(--radius)] px-3 text-sm font-bold transition-colors duration-150 disabled:opacity-65"
               style={

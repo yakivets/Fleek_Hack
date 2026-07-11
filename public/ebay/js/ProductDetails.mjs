@@ -32,27 +32,48 @@ function renderImages(product) {
   const images = getProductImages(product);
   const sideImages = document.querySelector('.side-images');
   const carousel = document.querySelector('.carousel-inner');
+  const previousButton = document.querySelector('.carousel-control-prev');
+  const nextButton = document.querySelector('.carousel-control-next');
   sideImages?.replaceChildren();
   carousel?.replaceChildren();
 
   if (images.length === 0) {
     if (carousel) appendText(carousel, 'p', 'No image available.', 'alert alert-light text-center');
+    if (previousButton) previousButton.hidden = true;
+    if (nextButton) nextButton.hidden = true;
     return;
   }
+
+  const slides = [];
+  const thumbnails = [];
+  let currentIndex = 0;
+
+  const showImage = (index) => {
+    currentIndex = (index + images.length) % images.length;
+    slides.forEach((slide, slideIndex) => {
+      slide.classList.toggle('active', slideIndex === currentIndex);
+      slide.setAttribute('aria-hidden', String(slideIndex !== currentIndex));
+    });
+    thumbnails.forEach((thumbnail, thumbnailIndex) => {
+      const selected = thumbnailIndex === currentIndex;
+      thumbnail.classList.toggle('is-active', selected);
+      thumbnail.setAttribute('aria-current', selected ? 'true' : 'false');
+    });
+  };
 
   images.forEach((source, index) => {
     const sideImage = document.createElement('img');
     sideImage.className = 'img-side';
     sideImage.src = source;
     sideImage.alt = `${productName(product)} photo ${index + 1}`;
-    sideImage.addEventListener('click', () => {
-      const mainImage = document.querySelector('.carousel-item.active .img-main');
-      if (mainImage) mainImage.src = source;
-    });
-    const wrapper = document.createElement('div');
+    const wrapper = document.createElement('button');
+    wrapper.type = 'button';
     wrapper.className = 'inner mb-3';
+    wrapper.setAttribute('aria-label', `Show photo ${index + 1}`);
+    wrapper.addEventListener('click', () => showImage(index));
     wrapper.appendChild(sideImage);
     sideImages?.appendChild(wrapper);
+    thumbnails.push(wrapper);
 
     const slide = document.createElement('div');
     slide.className = `carousel-item${index === 0 ? ' active' : ''}`;
@@ -62,7 +83,19 @@ function renderImages(product) {
     mainImage.alt = `${productName(product)} photo ${index + 1}`;
     slide.appendChild(mainImage);
     carousel?.appendChild(slide);
+    slides.push(slide);
   });
+
+  const hasMultipleImages = images.length > 1;
+  if (previousButton) {
+    previousButton.hidden = !hasMultipleImages;
+    previousButton.onclick = () => showImage(currentIndex - 1);
+  }
+  if (nextButton) {
+    nextButton.hidden = !hasMultipleImages;
+    nextButton.onclick = () => showImage(currentIndex + 1);
+  }
+  showImage(0);
 }
 
 function addToWatchlist(product) {
@@ -113,7 +146,7 @@ function renderDetails(product, cart) {
   appendText(
     priceSection,
     'p',
-    `${formatMoney(product.price, product.currency)}/ea`,
+    formatMoney(product.price, product.currency),
     'price fs-3 fw-bold mt-2',
   );
   appendText(

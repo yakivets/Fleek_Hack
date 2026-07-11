@@ -21,6 +21,13 @@ function normalizedStringArray(value) {
     .filter(Boolean);
 }
 
+export function hasReadyStudioPhotos(item) {
+  if (!item || item.enhancement_status !== 'ready') return false;
+  const originals = Array.isArray(item.images) ? item.images : [];
+  const studioPhotos = normalizedStringArray(item.enhanced_images);
+  return originals.length > 0 && studioPhotos.length === originals.length;
+}
+
 export function getSharedListingsModuleUrl(baseUrl = VITE_BASE_URL) {
   const normalizedBase = textOrDefault(baseUrl, '/');
   return `${normalizedBase.endsWith('/') ? normalizedBase : `${normalizedBase}/`}ebay/js/sharedListings.js`;
@@ -42,7 +49,10 @@ export function mapFleekItemToEbayProduct(item) {
 
   const id = sourceId.startsWith('fleek-') ? sourceId : `fleek-${sourceId}`;
   const title = textOrDefault(item.title, 'Untitled item');
-  const images = normalizedStringArray(item.images);
+  if (!hasReadyStudioPhotos(item)) {
+    throw new TypeError('Fleek item studio photos must be ready before sharing to eBay');
+  }
+  const images = normalizedStringArray(item.enhanced_images);
   const numericPrice = Number(item.suggested_price_gbp);
   const price = Number.isFinite(numericPrice) && numericPrice >= 0 ? numericPrice : 0;
   const conditionGrade =

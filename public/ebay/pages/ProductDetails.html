@@ -167,31 +167,29 @@
 
 
 
-  <div class="container-fluid">
-    <div class="row">
-        <div class="col-1">
+  <main class="container-fluid product-page">
+    <div class="row g-3 product-layout">
+        <div class="col-12 col-md-2 col-lg-1 product-thumbnails-column">
             <div class="side-images">
 
             </div>
         </div>
-        <div class="col-7">
+        <div class="col-12 col-md-10 col-lg-7 product-gallery-column">
             <div id="productCarousel" class="carousel slide carousel-fade">
                 <div class="carousel-inner mainImage"></div>
-                <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                <button class="carousel-control-prev" type="button" aria-label="Previous photo">
                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Previous</span>
                 </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                <button class="carousel-control-next" type="button" aria-label="Next photo">
                     <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Next</span>
                 </button>
             </div>
         </div>
-        <div class="col-4">
+        <div class="col-12 col-lg-4 product-details-column">
             <div id="productDetails"></div>
         </div>
     </div>
-</div>
+  </main>
 
 
 <!--  Start footer -->

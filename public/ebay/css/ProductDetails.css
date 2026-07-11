@@ -212,15 +212,34 @@
 /*end header and footer */
 
 
-.carousel-inner{
-    background-color: rgb(245, 245, 255);
-    height: 600px;
-    border-radius: 2%;
+.product-page {
+    padding: 24px clamp(12px, 3vw, 48px);
 }
-.carousel-item{
+
+.product-layout {
+    align-items: flex-start;
+}
+
+#productCarousel .carousel-inner {
+    background-color: rgb(245, 245, 255);
+    height: clamp(360px, 55vw, 600px);
+    border-radius: 2%;
+    overflow: hidden;
+}
+
+#productCarousel .carousel-item {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+}
+
+#productCarousel .carousel-item:not(.active) {
+    display: none;
+}
+
+#productCarousel .carousel-item.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .carousel-control-prev-icon,
@@ -249,29 +268,46 @@
 }
 
 
-.carousel-item img{
-    max-width: 100% !important;
-    max-height: 600px !important;
+#productCarousel .carousel-item img {
+    width: 100%;
+    height: 100%;
     object-fit: contain;
- 
 }
-.inner:hover  {
+
+.side-images {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.side-images .inner:hover {
     border: 1px solid black;
 }
 
-.inner {
-    width: 110%;
+.side-images .inner {
+    width: 100%;
+    aspect-ratio: 1;
     background-color: rgb(237, 237, 247);
-    border-radius: 10%;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    margin: 0 !important;
+    overflow: hidden;
 }
 
-.inner img {
-    max-height: 100px;
-    width: auto;
+.side-images .inner.is-active {
+    border: 2px solid #3665f3;
+}
+
+.side-images .inner img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
   
@@ -279,8 +315,49 @@
 .input-box{
     width: 35px;
 }
-.btn
-{
-    border-radius: 40% ;
-    width: 450px;
+#productDetails .actions {
+    display: grid;
+    gap: 8px;
+}
+
+#productDetails .actions a {
+    display: block;
+}
+
+#productDetails .actions .btn {
+    width: 100%;
+    max-width: 450px;
+}
+
+@media screen and (max-width: 767px) {
+    .product-page {
+        padding-top: 16px;
+    }
+
+    .product-thumbnails-column {
+        order: 2;
+    }
+
+    .product-gallery-column {
+        order: 1;
+    }
+
+    .product-details-column {
+        order: 3;
+    }
+
+    .side-images {
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .side-images .inner {
+        flex: 0 0 72px;
+    }
+
+    #productCarousel .carousel-inner {
+        height: min(78vw, 460px);
+        min-height: 280px;
+    }
 }
