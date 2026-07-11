@@ -1,0 +1,181 @@
+{
+  "name": "Fleek - Scan Item",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scan-item",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "3aa9cf23-0110-4efc-9aa7-e7ea774c573e",
+      "name": "Scan Item Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "51129d6d-17b3-4620-a630-dd226e397b16"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const body = $input.first().json.body ?? {};\nconst images = body.images;\n\nif (!Array.isArray(images) || images.length < 1 || images.length > 5) {\n  throw new Error('Expected body.images to contain 1-5 data URIs');\n}\n\nconst binary = {};\nfor (const [index, uri] of images.entries()) {\n  if (typeof uri !== 'string') throw new Error(`Image ${index + 1} is not a string`);\n\n  const match = uri.match(/^data:(image\\/(?:jpeg|png|webp));base64,(.+)$/s);\n  if (!match) throw new Error(`Image ${index + 1} is not a supported image data URI`);\n\n  const data = match[2].replace(/\\s/g, '');\n  if (!data || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {\n    throw new Error(`Image ${index + 1} contains invalid base64 data`);\n  }\n\n  const extension = match[1].split('/')[1].replace('jpeg', 'jpg');\n  binary[`image_${index}`] = {\n    data,\n    mimeType: match[1],\n    fileName: `item-${index + 1}.${extension}`,\n  };\n}\n\nreturn [{ json: { imageCount: images.length }, binary }];"
+      },
+      "id": "e65ff269-7309-4759-9414-cfa3faf7182c",
+      "name": "Validate and Prepare Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "You are a resale listing assistant. You will receive 1-5 photos of a single secondhand clothing item. Analyze them and respond with ONLY valid JSON, no markdown fences, no commentary, matching this exact shape:\n\n{\n  \"title\": \"string, marketplace-ready title (brand + item type + key detail)\",\n  \"category\": \"string, e.g. 'Women's Jeans', 'Men's T-Shirt'\",\n  \"brand\": \"string or null if not visible\",\n  \"condition_grade\": \"A|B|C|D\",\n  \"defects\": [\"short phrase per visible defect, empty array if none\"],\n  \"description\": \"2-3 sentence marketplace description\",\n  \"suggested_price_gbp\": 12.5,\n  \"price_reasoning\": \"one sentence\"\n}\n\nAnalyze these photos of one item.",
+        "inputType": "base64",
+        "binaryPropertyName": "={{ Object.keys($binary).join(',') }}",
+        "simplify": false,
+        "options": {
+          "detail": "auto",
+          "maxTokens": 600
+        }
+      },
+      "id": "bb4c5e06-67cf-452f-802d-09c8a28457d0",
+      "name": "Analyze Garment",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nconst output = Array.isArray(response.output) ? response.output : [];\nconst raw = output\n  .flatMap((block) => Array.isArray(block.content) ? block.content : [])\n  .find((part) => part.type === 'output_text')?.text\n  ?? response.message?.content\n  ?? response.content\n  ?? response.text;\n\nif (typeof raw !== 'string') {\n  return [{ json: { error: 'parse_failed', raw: null } }];\n}\n\nconst cleaned = raw.replace(/^```json\\s*|\\s*```$/g, '').trim();\nlet listing;\ntry {\n  listing = JSON.parse(cleaned);\n} catch {\n  return [{ json: { error: 'parse_failed', raw } }];\n}\n\nconst valid = listing\n  && typeof listing.title === 'string'\n  && typeof listing.category === 'string'\n  && (typeof listing.brand === 'string' || listing.brand === null)\n  && ['A', 'B', 'C', 'D'].includes(listing.condition_grade)\n  && Array.isArray(listing.defects)\n  && listing.defects.every((defect) => typeof defect === 'string')\n  && typeof listing.description === 'string'\n  && Number.isFinite(listing.suggested_price_gbp)\n  && listing.suggested_price_gbp >= 0\n  && typeof listing.price_reasoning === 'string';\n\nif (!valid) return [{ json: { error: 'parse_failed', raw } }];\n\nreturn [{ json: listing }];"
+      },
+      "id": "be22efcd-cf4b-4c0b-a83f-b75b37cd4b05",
+      "name": "Parse and Validate Listing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "746a2523-7c89-45dc-8fd5-e12a2878abbf",
+      "name": "Return Listing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1020,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scan Item Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate and Prepare Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Prepare Images": {
+      "main": [
+        [
+          {
+            "node": "Analyze Garment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Garment": {
+      "main": [
+        [
+          {
+            "node": "Parse and Validate Listing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse and Validate Listing": {
+      "main": [
+        [
+          {
+            "node": "Return Listing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "398bb394-4197-40ae-9154-a4d7980299e6",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

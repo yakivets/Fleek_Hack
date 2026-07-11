@@ -1,0 +1,180 @@
+/* Design tokens — "The Stone Courtyard at Dusk" (see DESIGN.md) */
+:root {
+  --moss: oklch(0.42 0.06 130);
+  --moss-deep: oklch(0.3 0.055 130);
+  --clay: oklch(0.52 0.13 40);
+  --clay-deep: oklch(0.42 0.125 40);
+  --stone: oklch(0.94 0.008 130);
+  --stone-surface: oklch(0.9 0.01 130);
+  --stone-deep: oklch(0.86 0.012 130);
+  --ink: oklch(0.2 0.012 130);
+  /* DESIGN.md seed had L 0.52 for muted ink; darkened to 0.45 to clear WCAG AA (4.5:1) on Quiet Stone. */
+  --ink-muted: oklch(0.45 0.012 130);
+  --lift: 0 2px 12px oklch(0.2 0.012 130 / 0.08);
+  --radius: 12px;
+  --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quint */
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--stone);
+  color: var(--ink);
+  font-family: Satoshi, Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+.brand-mark {
+  position: relative;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--moss-deep);
+}
+
+.brand-mark::before,
+.brand-mark::after,
+.brand-mark > span {
+  position: absolute;
+  width: 11px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: var(--stone);
+  content: '';
+}
+
+.brand-mark::before {
+  transform: translateY(-4px);
+}
+
+.brand-mark::after {
+  transform: translateY(4px);
+}
+
+.brand-mark > span {
+  width: 7px;
+}
+
+.studio-hero {
+  isolation: isolate;
+}
+
+.studio-grid {
+  position: absolute;
+  inset: 0 0 0 48%;
+  opacity: 0.12;
+  background-image:
+    linear-gradient(oklch(0.94 0.008 130 / 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.94 0.008 130 / 0.6) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black);
+  mask-image: linear-gradient(90deg, transparent, black);
+  pointer-events: none;
+}
+
+.capture-frame {
+  border: 1px solid oklch(0.94 0.008 130 / 0.45);
+  box-shadow:
+    inset 18px 0 28px -28px oklch(0.94 0.008 130 / 0.8),
+    inset -18px 0 28px -28px oklch(0.94 0.008 130 / 0.8);
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] > summary span[aria-hidden='true'] {
+  transform: rotate(45deg);
+}
+
+details > summary span[aria-hidden='true'] {
+  transition: transform 0.18s var(--ease-out);
+}
+
+:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+/* A captured thumbnail settling into the strip; a saved card settling into the dashboard. */
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.settle-in {
+  animation: settle-in 0.28s var(--ease-out) both;
+}
+
+/* Viewfinder <-> review crossfade */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+
+/* Quiet pulse for the Analyzing state */
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.soft-pulse {
+  animation: soft-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settle-in,
+  .fade-in,
+  .soft-pulse {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
