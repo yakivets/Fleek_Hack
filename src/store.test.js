@@ -37,6 +37,7 @@ test('creates, groups, moves, and finishes a bundle session', () => {
     bundles: [],
     activeBundleId: null,
     captureMode: 'single',
+    marketplaceConnections: { vinted: false, ebay: false },
   });
 
   const bundleId = useStore.getState().startBundle('Mixed lot');
@@ -60,6 +61,16 @@ test('creates, groups, moves, and finishes a bundle session', () => {
 
   useStore.getState().updateItem('jeans-1', { category_key: 'Trousers' });
   assert.equal(useStore.getState().items[0].category_key, 'Trousers');
+
+  useStore.getState().connectMarketplace('vinted');
+  useStore.getState().postItemToMarketplace('jeans-1', 'vinted');
+  assert.equal(useStore.getState().marketplaceConnections.vinted, true);
+  assert.equal(useStore.getState().items[0].marketplace_posts.vinted, true);
+
+  useStore.getState().connectMarketplace('ebay');
+  useStore.getState().postBundleToMarketplace(bundleId, 'ebay');
+  assert.equal(useStore.getState().items[0].marketplace_posts.ebay, true);
+  assert.equal(useStore.getState().items[0].status, 'posted');
 
   useStore.getState().finishBundle(bundleId);
   assert.equal(useStore.getState().bundles[0].status, 'finished');
@@ -90,7 +101,9 @@ test('marks supplied item IDs posted in one store update and leaves other record
   const after = useStore.getState().items;
   assert.equal(updates, 1);
   assert.equal(after[0].status, 'posted');
+  assert.equal(after[0].marketplace_posts.ebay, true);
   assert.equal(after[2].status, 'posted');
+  assert.equal(after[2].marketplace_posts.ebay, true);
   assert.strictEqual(after[1], before[1]);
 });
 
@@ -106,6 +119,40 @@ test('accepts an empty ID list without changing store state', () => {
 
   assert.equal(updates, 0);
   assert.strictEqual(useStore.getState().items, before);
+});
+
+test('undoes one item posting and clears all stale marketplace metadata atomically', () => {
+  useStore.setState({
+    items: [
+      {
+        id: 'posted',
+        status: 'posted',
+        marketplace_posts: { ebay: true, vinted: true },
+      },
+      {
+        id: 'untouched',
+        status: 'posted',
+        marketplace_posts: { ebay: true, vinted: false },
+      },
+    ],
+  });
+  const untouchedBefore = useStore.getState().items[1];
+  let updates = 0;
+  const unsubscribe = useStore.subscribe(() => {
+    updates += 1;
+  });
+
+  useStore.getState().undoItemPosting('posted');
+  unsubscribe();
+
+  const after = useStore.getState().items;
+  assert.equal(updates, 1);
+  assert.deepEqual(after[0], {
+    id: 'posted',
+    status: 'draft',
+    marketplace_posts: { ebay: false, vinted: false },
+  });
+  assert.strictEqual(after[1], untouchedBefore);
 });
 
 test('acquires the eBay sharing lock once and releases it for retry', () => {

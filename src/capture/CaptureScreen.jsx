@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { normalizeCategory, useStore } from '../store.js';
 import { useCamera, grabFrame, fileToDataURI } from './useCamera.js';
-import { analyzeItem } from './api.js';
+import { analyzeItem, enhanceImages, enhancementEnabled } from './api.js';
 import ListingEditor from './ListingEditor.jsx';
 
 const MAX_PHOTOS = 5; // n8n contract: 1-5 images per item
@@ -11,6 +11,22 @@ const GRADE_LABELS = {
   C: 'Fair condition',
   D: 'Well worn',
 };
+
+async function startImageEnhancement(item) {
+  const results = await enhanceImages(item.images, (index, image) => {
+    const current = useStore.getState().items.find(({ id }) => id === item.id);
+    if (!current) return;
+    const enhanced = [...current.enhanced_images];
+    enhanced[index] = image;
+    useStore.getState().updateItem(item.id, { enhanced_images: enhanced });
+  });
+
+  const completed = results.filter(({ status }) => status === 'fulfilled').length;
+  useStore.getState().updateItem(item.id, {
+    enhancement_status:
+      completed === item.images.length ? 'ready' : completed > 0 ? 'partial' : 'failed',
+  });
+}
 
 export default function CaptureScreen({ onFinishBundle }) {
   const addItem = useStore((s) => s.addItem);
@@ -83,7 +99,14 @@ export default function CaptureScreen({ onFinishBundle }) {
   const save = (edited) => {
     let bundleId = null;
     if (captureMode === 'bundle') bundleId = activeBundleId || startBundle();
-    addItem({ ...edited, bundle_id: bundleId });
+    const item = {
+      ...edited,
+      bundle_id: bundleId,
+      enhanced_images: Array(edited.images.length).fill(null),
+      enhancement_status: enhancementEnabled ? 'processing' : 'idle',
+    };
+    addItem(item);
+    if (enhancementEnabled) void startImageEnhancement(item);
     setPhotos([]);
     setDraft(null);
     setMode('camera');

@@ -21,6 +21,7 @@ const CATEGORY_RULES = [
 ];
 
 export const DEFAULT_CATEGORY_GROUPS = CATEGORY_RULES.map(([, label]) => label);
+export const MARKETPLACES = ['vinted', 'ebay'];
 
 function titleCase(value) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -47,6 +48,13 @@ function withCategoryKey(item) {
     ...item,
     category_key: item.category_key || normalizeCategory(item.category),
     bundle_id: item.bundle_id || null,
+    enhanced_images: Array.isArray(item.enhanced_images) ? item.enhanced_images : [],
+    enhancement_status: item.enhancement_status || 'idle',
+    marketplace_posts: {
+      vinted: false,
+      ebay: false,
+      ...item.marketplace_posts,
+    },
   };
 }
 
@@ -57,6 +65,7 @@ export const useStore = create(
       bundles: [],
       activeBundleId: null,
       captureMode: 'single',
+      marketplaceConnections: { vinted: false, ebay: false },
       hasHydrated: false,
       isSharingToEbay: false,
 
@@ -140,10 +149,36 @@ export const useStore = create(
 
         set((state) => ({
           items: state.items.map((item) =>
-            postedIds.has(item.id) ? { ...item, status: 'posted' } : item,
+            postedIds.has(item.id)
+              ? {
+                  ...item,
+                  status: 'posted',
+                  marketplace_posts: {
+                    ...item.marketplace_posts,
+                    ebay: true,
+                  },
+                }
+              : item,
           ),
         }));
       },
+
+      undoItemPosting: (id) =>
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  status: 'draft',
+                  marketplace_posts: {
+                    ...item.marketplace_posts,
+                    vinted: false,
+                    ebay: false,
+                  },
+                }
+              : item,
+          ),
+        })),
 
       beginEbayShare: () => {
         if (get().isSharingToEbay) return false;
@@ -159,6 +194,52 @@ export const useStore = create(
         set((state) => ({
           items: state.items.filter((item) => item.id !== id),
         })),
+
+      connectMarketplace: (marketplace) => {
+        if (!MARKETPLACES.includes(marketplace)) return;
+        set((state) => ({
+          marketplaceConnections: {
+            ...state.marketplaceConnections,
+            [marketplace]: true,
+          },
+        }));
+      },
+
+      postItemToMarketplace: (id, marketplace) => {
+        if (!MARKETPLACES.includes(marketplace)) return;
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  marketplace_posts: {
+                    ...item.marketplace_posts,
+                    [marketplace]: true,
+                  },
+                  status: 'posted',
+                }
+              : item,
+          ),
+        }));
+      },
+
+      postBundleToMarketplace: (bundleId, marketplace) => {
+        if (!MARKETPLACES.includes(marketplace)) return;
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.bundle_id === bundleId
+              ? {
+                  ...item,
+                  marketplace_posts: {
+                    ...item.marketplace_posts,
+                    [marketplace]: true,
+                  },
+                  status: 'posted',
+                }
+              : item,
+          ),
+        }));
+      },
 
       renameCategoryGroup: (bundleId, from, to) => {
         const name = to.trim();
@@ -176,17 +257,28 @@ export const useStore = create(
       name: 'fleek-relist',
       version: 1,
       storage: createJSONStorage(() => indexedDbStorage),
-      partialize: ({ items, bundles, activeBundleId, captureMode }) => ({
+      partialize: ({
         items,
         bundles,
         activeBundleId,
         captureMode,
+        marketplaceConnections,
+      }) => ({
+        items,
+        bundles,
+        activeBundleId,
+        captureMode,
+        marketplaceConnections,
       }),
       merge: (persisted, current) => ({
         ...current,
         ...persisted,
         items: (persisted?.items || []).map(withCategoryKey),
         bundles: persisted?.bundles || [],
+        marketplaceConnections: {
+          ...current.marketplaceConnections,
+          ...persisted?.marketplaceConnections,
+        },
       }),
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
     },

@@ -12,8 +12,9 @@ Read `docs/CONTRACT.md` and `docs/BACKEND_N8N.md` first — the n8n spec is full
 2. **Dashboard screen** — reads `items` from the shared store (`useStore()`), renders as a vertical list of cards: thumbnail (first image), title, price, condition badge, status badge.
 3. **Sort** — dropdown/buttons for sort by price, condition grade, category. Pure client-side array sort, no backend involved.
 4. **Filter** — simple chips/toggles for category and/or price range. Also pure client-side.
-5. **"Post to eBay/Vinted" button** — per card, on tap calls `updateItem(id, {status: 'posted'})`. Just flips a visual badge — no real marketplace integration, this is intentionally fake.
+5. **Marketplace placeholders** — opening an item or bundle shows Vinted and eBay controls. The first click stores a demo connection; the next marks that item or every item in the bundle as posted to the chosen marketplace. No real marketplace integration is performed.
 6. **Tap a card** — re-opens it in an editable view (can reuse Builder A's listing-card edit component if it's ready, or build a minimal standalone edit form — coordinate this one specific handoff with Builder A rather than duplicating the component).
+7. **AI studio photos** — after save, call the enhancement webhook once per captured image. Show completed edits incrementally, retain originals as fallbacks, and let the user switch between Studio and Original galleries.
 
 ## Files
 
@@ -24,7 +25,7 @@ src/dashboard/
   ListingCard.jsx        — card component (may be shared with Builder A's review screen — decide together if reused)
 ```
 
-The live workflow runs in n8n Cloud. Its importable definition is committed as `docs/FLEEK_N8N_WORKFLOW.json`; the Production URL belongs in the ignored `.env.local` file as `VITE_N8N_WEBHOOK_URL`.
+The live workflows run in n8n Cloud. Their importable definitions are committed as `docs/FLEEK_N8N_WORKFLOW.json` and `docs/FLEEK_N8N_ENHANCE_IMAGE_BRANCH.json`; the Production URLs belong in the ignored `.env.local` file as `VITE_N8N_WEBHOOK_URL` and `VITE_N8N_ENHANCE_URL`.
 
 ## Explicitly not your job
 
@@ -51,6 +52,8 @@ Phone capture
 ```
 
 The OpenAI credential remains inside n8n. The workflow definition is available at `docs/FLEEK_N8N_WORKFLOW.json`, and `.env.example` documents frontend configuration. There is intentionally no database, authentication, or real marketplace API in this version.
+
+After the user saves a listing, photo cleanup runs asynchronously so it does not delay the core capture loop. Each image is posted to the separate `enhance-image` workflow, which uses `gpt-image-1` edit mode to preserve the exact garment while replacing only its background, framing, and lighting. Completed edits are stored index-for-index beside the originals in IndexedDB and become the preferred marketplace/gallery images.
 
 ## Delivered extension — Bundles dashboard
 
@@ -106,3 +109,4 @@ The existing n8n workflow can remain unchanged because it already returns `categ
 4. ✅ Moving an item updates its group and bundle totals immediately.
 5. ✅ IndexedDB preserves active bundle sessions across refreshes.
 6. ✅ Hold-and-drag moves items on mobile; destructive drops require confirmation.
+7. ✅ Item and bundle views provide persisted Vinted/eBay connection and posting placeholders.

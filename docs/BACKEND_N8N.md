@@ -1,4 +1,4 @@
-# Backend — n8n Workflow
+# Backend — n8n Workflows
 
 One n8n Cloud workflow, one OpenAI vision request per garment, and no database.
 
@@ -79,6 +79,24 @@ VITE_N8N_WEBHOOK_URL=https://YOUR-N8N-HOST/webhook/scan-item
 
 To return to the mock backend, remove the variable's value and restart Vite.
 
+## Activate AI studio photo cleanup
+
+1. Import `docs/FLEEK_N8N_ENHANCE_IMAGE_BRANCH.json` as a second workflow.
+2. Open **Clean Product Photo** and select the same OpenAI credential.
+3. Save, publish, and activate the workflow.
+4. Copy the `Enhance Image Webhook` node's **Production URL**.
+5. Add it to `.env.local`:
+
+```dotenv
+VITE_N8N_ENHANCE_URL=https://YOUR-N8N-HOST/webhook/enhance-image
+```
+
+6. Restart `npm run dev`.
+7. Scan and save a new item. Cleanup starts only after save and sends one webhook execution per captured photo.
+8. Open the new item in Library. The Photos panel updates as edits complete and its Studio/Original control preserves access to both versions.
+
+Existing saved items are not enhanced retroactively. A failed edit keeps the matching original photo visible.
+
 ## Troubleshooting
 
 - **Browser says network error, but n8n works manually:** activate the workflow, use the Production URL, and confirm Allowed Origins is `*`.
@@ -87,6 +105,8 @@ To return to the mock backend, remove the variable's value and restart Vite.
 - **`parse_failed`:** inspect the raw OpenAI output in the Parse and Validate Listing node.
 - **Request times out:** inspect the n8n execution. n8n Cloud webhooks have a 100-second limit, but one `gpt-4o-mini` vision request should normally finish well within it.
 - **Environment variable seems ignored:** restart the Vite development server.
+- **No enhancement executions:** confirm `VITE_N8N_ENHANCE_URL` uses the Production URL, restart Vite, and save a newly scanned item. Opening an item that was saved before the integration does not trigger cleanup.
+- **Listing works but photo cleanup fails:** inspect the first red node in the `enhance-image` execution, verify that `gpt-image-1` is available to the OpenAI project, and check billing.
 
 ## Explicitly out of scope
 

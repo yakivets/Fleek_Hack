@@ -66,7 +66,7 @@ src/
 
 ## Delivered bundle extension
 
-The app includes a **Single / Bundle** capture choice. Single preserves the original flow. Bundle mode keeps a multi-item scanning session open and automatically groups mixed garments by normalized AI category. The Bundles dashboard provides grouped items, counts, combined suggested value, hold-and-drag correction, confirmed deletion, renaming, lifecycle actions, and browser persistence. See `docs/PLAN_BUILDER_A.md`, `docs/PLAN_BUILDER_B.md`, and `docs/CONTRACT.md`.
+The app includes a **Single / Bundle** capture choice. Single preserves the original flow. Bundle mode keeps a multi-item scanning session open and automatically groups mixed garments by normalized AI category. The Bundles dashboard provides grouped items, counts, combined suggested value, hold-and-drag correction, confirmed deletion, renaming, lifecycle actions, browser persistence, and client-side Vinted/eBay connection/posting placeholders. See `docs/PLAN_BUILDER_A.md`, `docs/PLAN_BUILDER_B.md`, and `docs/CONTRACT.md`.
 
 ## Timeline (7 hrs)
 

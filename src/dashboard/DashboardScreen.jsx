@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_CATEGORY_GROUPS, useStore } from '../store.js';
+import { DEFAULT_CATEGORY_GROUPS, MARKETPLACES, useStore } from '../store.js';
 import { shareFleekItemsToEbay } from '../integrations/ebay.js';
 import ListingEditor from '../capture/ListingEditor.jsx';
-import { shareDraftItems } from './shareDraftItems.js';
+import { shareDraftItems, shareMarketplaceItems } from './shareDraftItems.js';
 
 const SORTS = {
   newest: { label: 'Newest', fn: () => 0 },
@@ -18,6 +18,10 @@ const SORTS = {
 };
 
 const FILTERS = ['All', 'Draft', 'Posted'];
+
+function preferredImage(item, index = 0) {
+  return item.enhanced_images?.[index] || item.images?.[index] || '';
+}
 
 export default function DashboardScreen({
   onScanFirst,
@@ -79,6 +83,7 @@ export default function DashboardScreen({
 function AllItemsView({ onScanFirst }) {
   const items = useStore((state) => state.items);
   const updateItem = useStore((state) => state.updateItem);
+  const undoItemPosting = useStore((state) => state.undoItemPosting);
   const markItemsPosted = useStore((state) => state.markItemsPosted);
   const isSharing = useStore((state) => state.isSharingToEbay);
   const beginEbayShare = useStore((state) => state.beginEbayShare);
@@ -225,7 +230,7 @@ function AllItemsView({ onScanFirst }) {
             open={openId === item.id}
             onToggle={() => setOpenId(openId === item.id ? null : item.id)}
             onPost={() => updateItem(item.id, { status: 'posted' })}
-            onUndoPost={() => updateItem(item.id, { status: 'draft' })}
+            onUndoPost={() => undoItemPosting(item.id)}
             onSave={(draft) => {
               updateItem(item.id, draft);
               setOpenId(null);
@@ -328,10 +333,10 @@ function BundleCard({ bundle, items, onOpen }) {
         <span className="mt-4 flex items-end justify-between gap-3">
           <span className="flex -space-x-2">
             {items.slice(0, 4).map((item) =>
-              item.images[0] ? (
+              preferredImage(item) ? (
                 <img
                   key={item.id}
-                  src={item.images[0]}
+                  src={preferredImage(item)}
                   alt=""
                   className="h-11 w-11 rounded-full border-2 border-[var(--stone-surface)] object-cover"
                 />
@@ -357,6 +362,7 @@ function BundleCard({ bundle, items, onOpen }) {
 
 function BundleDetail({ bundle, items, onBack, onContinue }) {
   const updateItem = useStore((state) => state.updateItem);
+  const undoItemPosting = useStore((state) => state.undoItemPosting);
   const removeItem = useStore((state) => state.removeItem);
   const renameBundle = useStore((state) => state.renameBundle);
   const renameCategoryGroup = useStore((state) => state.renameCategoryGroup);
@@ -563,6 +569,7 @@ function BundleDetail({ bundle, items, onBack, onContinue }) {
             </button>
           ) : null}
         </div>
+        <MarketplacePanel items={items} bundleId={bundle.id} />
       </header>
 
       {groups.length === 0 ? (
@@ -632,7 +639,7 @@ function BundleDetail({ bundle, items, onBack, onContinue }) {
                     open={openId === item.id}
                     onToggle={() => setOpenId(openId === item.id ? null : item.id)}
                     onPost={() => updateItem(item.id, { status: 'posted' })}
-                    onUndoPost={() => updateItem(item.id, { status: 'draft' })}
+                    onUndoPost={() => undoItemPosting(item.id)}
                     onSave={(draft) => {
                       updateItem(item.id, draft);
                       setOpenId(null);
@@ -734,7 +741,7 @@ function Row({
   dragHandleProps,
   onRequestDelete,
 }) {
-  const posted = item.status === 'posted';
+  const postedMarkets = MARKETPLACES.filter((marketplace) => item.marketplace_posts?.[marketplace]);
   return (
     <li className="settle-in overflow-hidden rounded-[var(--radius-lg)] bg-[var(--stone-surface)]">
       <div className="flex w-full items-center gap-3 p-3 text-left">
@@ -762,9 +769,9 @@ function Row({
           aria-label={`${open ? 'Close' : 'Edit'} ${item.title}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          {item.images[0] ? (
+          {preferredImage(item) ? (
             <img
-              src={item.images[0]}
+              src={preferredImage(item)}
               alt=""
               className="h-16 w-14 shrink-0 rounded-[10px] object-cover"
             />
@@ -791,29 +798,31 @@ function Row({
         </button>
         <span className="flex shrink-0 flex-col items-end gap-1.5">
           <span className="font-bold">£{item.suggested_price_gbp}</span>
-          {posted ? (
-            <button
-              onClick={onUndoPost}
-              className="min-h-11 rounded-full px-3 text-xs font-bold"
-              style={{ color: 'var(--moss-deep)', background: 'oklch(0.42 0.06 130 / 0.14)' }}
-            >
-              Posted · Undo
-            </button>
-          ) : (
-            <button
-              onClick={onPost}
-              className="min-h-11 rounded-full bg-[var(--moss)] px-3.5 text-xs font-bold text-[var(--stone)] transition-colors duration-150 hover:bg-[var(--moss-deep)]"
-            >
-              Mark posted
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={item.status === 'posted' ? onUndoPost : onPost}
+            className="min-h-11 rounded-full px-2.5 py-1.5 text-xs font-bold"
+            style={
+              item.status === 'posted'
+                ? { color: 'var(--moss-deep)', background: 'oklch(0.42 0.06 130 / 0.14)' }
+                : { color: 'var(--stone)', background: 'var(--moss)' }
+            }
+          >
+            {postedMarkets.length
+              ? `${postedMarkets.map(marketplaceLabel).join(' · ')} · Undo`
+              : item.status === 'posted'
+                ? 'Posted · Undo'
+                : 'Mark posted'}
+          </button>
         </span>
       </div>
 
       {open && (
         <div className="fade-in border-t border-[var(--stone-deep)] p-4">
+          <ItemGallery item={item} />
+          <MarketplacePanel items={[item]} />
           {groupOptions && (
-            <label className="mb-4 block">
+            <label className="mb-4 mt-4 block">
               <span className="mb-1.5 block text-[0.8125rem] font-medium text-[var(--ink-muted)]">
                 Bundle group
               </span>
@@ -848,6 +857,223 @@ function Row({
         </div>
       )}
     </li>
+  );
+}
+
+function ItemGallery({ item }) {
+  const [selected, setSelected] = useState(0);
+  const [version, setVersion] = useState('cleaned');
+  const originals = item.images || [];
+  const enhanced = item.enhanced_images || [];
+  const cleanedCount = enhanced.filter(Boolean).length;
+  const images = version === 'original' ? originals : originals.map((image, index) => enhanced[index] || image);
+  const status = item.enhancement_status;
+
+  if (images.length === 0) return null;
+
+  const statusCopy =
+    status === 'processing'
+      ? `AI studio cleanup in progress · ${cleanedCount} of ${images.length} ready`
+      : status === 'ready'
+        ? 'AI studio photos ready'
+        : status === 'partial'
+          ? `${cleanedCount} cleaned · originals used for the rest`
+          : status === 'failed'
+            ? 'Studio cleanup failed · showing originals'
+            : `${images.length} captured ${images.length === 1 ? 'photo' : 'photos'}`;
+
+  return (
+    <section aria-label="Item photos">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-medium">Photos</h3>
+          <p
+            className="mt-0.5 text-xs text-[var(--ink-muted)]"
+            role={status === 'processing' ? 'status' : undefined}
+          >
+            {statusCopy}
+          </p>
+        </div>
+        {(cleanedCount > 0 || status === 'processing') && (
+          <div className="flex rounded-full bg-[var(--stone-deep)] p-1" aria-label="Photo version">
+            {[
+              ['cleaned', 'Studio'],
+              ['original', 'Original'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={version === value}
+                onClick={() => setVersion(value)}
+                className="min-h-8 rounded-full px-3 text-xs font-bold"
+                style={
+                  version === value
+                    ? { background: 'var(--stone-surface)', color: 'var(--ink)' }
+                    : { color: 'var(--ink-muted)' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid aspect-square place-items-center overflow-hidden rounded-[var(--radius-lg)] bg-white">
+        <img
+          src={images[selected] || images[0]}
+          alt={`${item.title}, photo ${selected + 1}`}
+          className="h-full w-full object-contain"
+        />
+      </div>
+
+      {images.length > 1 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {images.map((image, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => setSelected(index)}
+              aria-label={`Show photo ${index + 1}`}
+              aria-pressed={selected === index}
+              className="h-16 w-14 shrink-0 overflow-hidden rounded-[10px] border-2"
+              style={{
+                borderColor: selected === index ? 'var(--moss)' : 'transparent',
+              }}
+            >
+              <img src={image} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MarketplacePanel({ items, bundleId = null }) {
+  const connections = useStore((state) => state.marketplaceConnections);
+  const connectMarketplace = useStore((state) => state.connectMarketplace);
+  const postItem = useStore((state) => state.postItemToMarketplace);
+  const postBundle = useStore((state) => state.postBundleToMarketplace);
+  const markItemsPosted = useStore((state) => state.markItemsPosted);
+  const isSharing = useStore((state) => state.isSharingToEbay);
+  const beginEbayShare = useStore((state) => state.beginEbayShare);
+  const finishEbayShare = useStore((state) => state.finishEbayShare);
+  const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
+
+  const act = async (marketplace) => {
+    const label = marketplaceLabel(marketplace);
+    if (!connections[marketplace]) {
+      connectMarketplace(marketplace);
+      setFeedback({ type: 'status', text: `${label} connected. Tap again to post.` });
+      return;
+    }
+
+    if (marketplace === 'ebay') {
+      setFeedback(null);
+      try {
+        const shared = await shareMarketplaceItems({
+          items,
+          beginSharing: beginEbayShare,
+          finishSharing: finishEbayShare,
+          shareItems: shareFleekItemsToEbay,
+          markItemsPosted,
+        });
+        if (shared.length === 0) return;
+        setFeedback({
+          type: 'status',
+          text: bundleId
+            ? `${shared.length} ${shared.length === 1 ? 'item' : 'items'} posted to ${label}.`
+            : `Posted to ${label}.`,
+        });
+      } catch {
+        setFeedback({
+          type: 'error',
+          text: `Couldn’t post to ${label}. Nothing was marked as posted. Please try again.`,
+        });
+      }
+      return;
+    }
+
+    if (bundleId) postBundle(bundleId, marketplace);
+    else if (items[0]) postItem(items[0].id, marketplace);
+    setFeedback({
+      type: 'status',
+      text: bundleId
+        ? `${items.length} ${items.length === 1 ? 'item' : 'items'} posted to ${label}.`
+        : `Posted to ${label}.`,
+    });
+  };
+
+  return (
+    <section
+      className="mt-4 rounded-[var(--radius-lg)] bg-[var(--stone-deep)] p-4"
+      aria-label="Marketplace posting"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-medium">Post to marketplaces</h3>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--ink-muted)]">
+            Choose a connected marketplace for these listings.
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {MARKETPLACES.map((marketplace) => {
+          const connected = connections[marketplace];
+          const allPosted =
+            items.length > 0
+            && items.every((item) => item.marketplace_posts?.[marketplace]);
+          const label = marketplaceLabel(marketplace);
+          const buttonLabel = !connected
+            ? `Connect ${label}`
+            : marketplace === 'ebay' && isSharing
+              ? `Posting to ${label}…`
+            : allPosted
+              ? `Posted to ${label}`
+              : bundleId
+                ? `Post bundle to ${label}`
+                : `Post to ${label}`;
+
+          return (
+            <button
+              key={marketplace}
+              type="button"
+              onClick={() => act(marketplace)}
+              disabled={
+                (connected && allPosted)
+                || (connected && items.length === 0)
+                || (marketplace === 'ebay' && isSharing)
+              }
+              className="min-h-12 rounded-[var(--radius)] px-3 text-sm font-bold transition-colors duration-150 disabled:opacity-65"
+              style={
+                connected && !allPosted
+                  ? { background: 'var(--moss)', color: 'var(--stone)' }
+                  : { background: 'var(--stone-surface)', color: 'var(--ink)' }
+              }
+            >
+              {buttonLabel}
+            </button>
+          );
+        })}
+      </div>
+      {feedback && (
+        <p
+          className={`mt-3 text-xs font-medium ${
+            feedback.type === 'error' ? 'text-[var(--clay-deep)]' : 'text-[var(--moss-deep)]'
+          }`}
+          role={feedback.type === 'error' ? 'alert' : 'status'}
+        >
+          {feedback.text}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -900,4 +1126,8 @@ function formatDate(value) {
 
 function slug(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function marketplaceLabel(marketplace) {
+  return marketplace === 'ebay' ? 'eBay' : 'Vinted';
 }

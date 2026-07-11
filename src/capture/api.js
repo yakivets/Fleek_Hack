@@ -1,5 +1,8 @@
 // Set VITE_N8N_WEBHOOK_URL in .env.local to go live. Empty = mock mode.
 const WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL?.trim() || '';
+const ENHANCE_URL = import.meta.env.VITE_N8N_ENHANCE_URL?.trim() || '';
+
+export const enhancementEnabled = Boolean(ENHANCE_URL);
 
 export async function analyzeItem(images) {
   if (!WEBHOOK_URL) return mockAnalyze(images);
@@ -12,6 +15,36 @@ export async function analyzeItem(images) {
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;
+}
+
+export async function enhanceImages(images, onImage) {
+  if (!ENHANCE_URL) return [];
+
+  return Promise.allSettled(
+    images.map(async (image, index) => {
+      const res = await fetch(ENHANCE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image }),
+      });
+      if (!res.ok) throw new Error(`enhancement webhook ${res.status}`);
+
+      const blob = await res.blob();
+      if (!blob.size) throw new Error('enhancement returned an empty image');
+      const dataUri = await blobToDataUri(blob);
+      onImage?.(index, dataUri);
+      return dataUri;
+    }),
+  );
+}
+
+function blobToDataUri(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
 
 // --- Mock backend (matches docs/CONTRACT.md response shape exactly) ---

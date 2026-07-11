@@ -33,3 +33,23 @@ export async function shareDraftItems({
     finishSharing();
   }
 }
+
+export async function shareMarketplaceItems({
+  items,
+  beginSharing = () => true,
+  finishSharing = () => {},
+  shareItems,
+  markItemsPosted,
+}) {
+  const pending = items.filter((item) => !item.marketplace_posts?.ebay);
+  if (pending.length === 0) return [];
+  if (!beginSharing()) return [];
+
+  try {
+    await shareItems(pending);
+    markItemsPosted(pending.map((item) => item.id));
+    return pending;
+  } finally {
+    finishSharing();
+  }
+}
